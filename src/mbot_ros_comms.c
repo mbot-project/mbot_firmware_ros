@@ -8,11 +8,13 @@ rcl_publisher_t imu_publisher;
 rcl_publisher_t odom_publisher;
 rcl_publisher_t mbot_vel_publisher;
 rcl_publisher_t motor_vel_publisher;
+rcl_publisher_t tf_publisher;
 
 sensor_msgs__msg__Imu imu_msg;
 nav_msgs__msg__Odometry odom_msg;
 geometry_msgs__msg__Twist mbot_vel_msg; 
 geometry_msgs__msg__Vector3 motor_vel_msg; // x: left (MOT_L), y: right (MOT_R), z: unused (MOT_UNUSED)
+tf2_msgs__msg__TFMessage tf_msg;
 
 rcl_subscription_t cmd_vel_subscriber;
 rcl_subscription_t motor_vel_cmd_subscriber;
@@ -29,6 +31,13 @@ static char odom_frame_id_buf[FRAME_ID_CAPACITY];
 static char odom_child_frame_id_buf[FRAME_ID_CAPACITY];
 
 int mbot_ros_comms_init_messages(rcl_allocator_t* allocator) {
+    // Initialize messages with dynamic fields
+    sensor_msgs__msg__Imu__init(&imu_msg);
+
+    nav_msgs__msg__Odometry__init(&odom_msg);
+    tf2_msgs__msg__TFMessage__init(&tf_msg);
+    geometry_msgs__msg__TransformStamped__Sequence__init(&tf_msg.transforms, 1);
+    
     // IMU message initialization
     imu_msg.header.frame_id.data = imu_frame_id_buf;
     imu_msg.header.frame_id.capacity = FRAME_ID_CAPACITY;
@@ -85,6 +94,13 @@ int mbot_ros_comms_init_publishers(rcl_node_t *node) {
         ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Vector3),
         "motor_vel");
     if (ret != RCL_RET_OK) { printf("[FATAL] Failed to init motor_vel_publisher: %d\n", ret); fflush(stdout); return MBOT_ERROR; }
+
+    ret = rclc_publisher_init_default(
+        &tf_publisher,
+        node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(tf2_msgs, msg, TFMessage),
+        "tf");
+    if (ret != RCL_RET_OK) { printf("[FATAL] Failed to init tf_publisher: %d\n", ret); fflush(stdout); return MBOT_ERROR; }
 
     return MBOT_OK;
 }

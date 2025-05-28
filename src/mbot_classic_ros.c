@@ -13,6 +13,8 @@
 #include "pico/time.h"
 #include <hardware/clocks.h>
 #include <hardware/adc.h>
+#include <geometry_msgs/msg/transform_stamped.h>
+#include <tf2_msgs/msg/tf_message.h>
 
 // mbotlib
 #include <mbot/motor/motor.h>
@@ -83,7 +85,14 @@ int mbot_init_micro_ros(void) {
         printf("rclc_support_init failed: %d\n", ret);
         return MBOT_ERROR;
     }
-    
+
+    // Synchronize time with agent
+    rmw_ret_t sync_ret = rmw_uros_sync_session(2000);
+    if (sync_ret != RMW_RET_OK) {
+        printf("[FATAL] Time sync with agent failed: %d\n", sync_ret);
+        while(1) { tight_loop_contents(); }
+    }
+        
     ret = rclc_node_init_default(&node, "microros_node", "", &support);
     if (ret != RCL_RET_OK) {
         printf("rclc_node_init_default failed: %d\n", ret);
@@ -147,6 +156,10 @@ int mbot_spin_micro_ros(void) {
 static void mbot_publish_state(void) {
     rcl_ret_t ret;
     int64_t now = rmw_uros_epoch_nanos();
+    if (!rmw_uros_epoch_synchronized()) {
+        printf("[FATAL] Last time synchronization failed\n");
+        while(1) { tight_loop_contents(); }
+    }
 
     // Publish IMU data
     imu_msg.header.stamp.sec = now / 1000000000;
@@ -190,6 +203,21 @@ static void mbot_publish_state(void) {
     ret = rcl_publish(&odom_publisher, &odom_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing odometry message: %d\r\n", ret);
+    }
+
+    // Publish odom->base_footprint TF as tf2_msgs/msg/TFMessage
+    tf_msg.transforms.data[0].header.stamp.sec = now / 1000000000;
+    tf_msg.transforms.data[0].header.stamp.nanosec = now % 1000000000;
+    tf_msg.transforms.data[0].header.frame_id = odom_msg.header.frame_id; // "odom"
+    tf_msg.transforms.data[0].child_frame_id = odom_msg.child_frame_id;   // "base_footprint"
+    tf_msg.transforms.data[0].transform.translation.x = odom_msg.pose.pose.position.x;
+    tf_msg.transforms.data[0].transform.translation.y = odom_msg.pose.pose.position.y;
+    tf_msg.transforms.data[0].transform.translation.z = odom_msg.pose.pose.position.z;
+    tf_msg.transforms.data[0].transform.rotation = odom_msg.pose.pose.orientation;
+    tf_msg.transforms.size = 1;
+    ret = rcl_publish(&tf_publisher, &tf_msg, NULL);
+    if (ret != RCL_RET_OK) {
+        printf("Error publishing TF message: %d\r\n", ret);
     }
 
     // Publish Mbot velocity data
@@ -340,9 +368,9 @@ int main() {
     }
 
     printf("Pinging Agent...\n");
-    // Wait for agent successful ping for 5 minutes.
+    // Wait for agent successful ping for 3 minutes.
     const int timeout_ms = 1000;
-    const uint8_t attempts = 300;
+    const uint8_t attempts = 180;
     rcl_ret_t ping_ret = rmw_uros_ping_agent(timeout_ms, attempts);
     if (ping_ret != RMW_RET_OK) {
         printf("[FATAL] Failed to ping Micro-ROS Agent!\n");
