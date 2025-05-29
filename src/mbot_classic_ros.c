@@ -76,6 +76,12 @@ static void mbot_calculate_motor_vel(void);
 static void mbot_calculate_diff_body_vel(float wheel_left_vel, float wheel_right_vel, float* vx, float* vy, float* wz);
 static void print_mbot_params(const mbot_params_t* params);
 
+// Thread-safe helpers for mbot_state and mbot_cmd
+static void get_mbot_state_safe(mbot_state_t* dest);
+static void set_mbot_state_safe(const mbot_state_t* src);
+static void get_mbot_cmd_safe(mbot_cmd_t* dest);
+static void set_mbot_cmd_safe(const mbot_cmd_t* src);
+
 // Initialize microROS
 int mbot_init_micro_ros(void) {
     allocator = rcl_get_default_allocator();
@@ -161,55 +167,51 @@ static void mbot_publish_state(void) {
         while(1) { tight_loop_contents(); }
     }
 
+    // Get state safely
+    mbot_state_t local_state;
+    get_mbot_state_safe(&local_state);
+    
     // Publish IMU data
     imu_msg.header.stamp.sec = now / 1000000000;
     imu_msg.header.stamp.nanosec = now % 1000000000;
-    
-    imu_msg.angular_velocity.x = mbot_state.imu_gyro[0];
-    imu_msg.angular_velocity.y = mbot_state.imu_gyro[1];
-    imu_msg.angular_velocity.z = mbot_state.imu_gyro[2];
-    imu_msg.linear_acceleration.x = mbot_state.imu_accel[0];
-    imu_msg.linear_acceleration.y = mbot_state.imu_accel[1];
-    imu_msg.linear_acceleration.z = mbot_state.imu_accel[2];
-    imu_msg.orientation.w = mbot_state.imu_quat[0];
-    imu_msg.orientation.x = mbot_state.imu_quat[1];
-    imu_msg.orientation.y = mbot_state.imu_quat[2];
-    imu_msg.orientation.z = mbot_state.imu_quat[3];
-    
+    imu_msg.angular_velocity.x = local_state.imu_gyro[0];
+    imu_msg.angular_velocity.y = local_state.imu_gyro[1];
+    imu_msg.angular_velocity.z = local_state.imu_gyro[2];
+    imu_msg.linear_acceleration.x = local_state.imu_accel[0];
+    imu_msg.linear_acceleration.y = local_state.imu_accel[1];
+    imu_msg.linear_acceleration.z = local_state.imu_accel[2];
+    imu_msg.orientation.w = local_state.imu_quat[0];
+    imu_msg.orientation.x = local_state.imu_quat[1];
+    imu_msg.orientation.y = local_state.imu_quat[2];
+    imu_msg.orientation.z = local_state.imu_quat[3];
     ret = rcl_publish(&imu_publisher, &imu_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing IMU message: %d\r\n", ret);
     }
-
     // Publish odometry data
     odom_msg.header.stamp.sec = now / 1000000000;
     odom_msg.header.stamp.nanosec = now % 1000000000;
-    
-    odom_msg.pose.pose.position.x = mbot_state.odom_x;
-    odom_msg.pose.pose.position.y = mbot_state.odom_y;
+    odom_msg.pose.pose.position.x = local_state.odom_x;
+    odom_msg.pose.pose.position.y = local_state.odom_y;
     odom_msg.pose.pose.position.z = 0.0;
-    
-    float cy = cos(mbot_state.odom_theta * 0.5);
-    float sy = sin(mbot_state.odom_theta * 0.5);
+    float cy = cos(local_state.odom_theta * 0.5);
+    float sy = sin(local_state.odom_theta * 0.5);
     odom_msg.pose.pose.orientation.w = cy;
     odom_msg.pose.pose.orientation.x = 0.0;
     odom_msg.pose.pose.orientation.y = 0.0;
     odom_msg.pose.pose.orientation.z = sy;
-    
-    odom_msg.twist.twist.linear.x = mbot_state.vx;
-    odom_msg.twist.twist.linear.y = mbot_state.vy;
-    odom_msg.twist.twist.angular.z = mbot_state.wz;
-    
+    odom_msg.twist.twist.linear.x = local_state.vx;
+    odom_msg.twist.twist.linear.y = local_state.vy;
+    odom_msg.twist.twist.angular.z = local_state.wz;
     ret = rcl_publish(&odom_publisher, &odom_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing odometry message: %d\r\n", ret);
     }
-
     // Publish odom->base_footprint TF as tf2_msgs/msg/TFMessage
     tf_msg.transforms.data[0].header.stamp.sec = now / 1000000000;
     tf_msg.transforms.data[0].header.stamp.nanosec = now % 1000000000;
-    tf_msg.transforms.data[0].header.frame_id = odom_msg.header.frame_id; // "odom"
-    tf_msg.transforms.data[0].child_frame_id = odom_msg.child_frame_id;   // "base_footprint"
+    tf_msg.transforms.data[0].header.frame_id = odom_msg.header.frame_id;
+    tf_msg.transforms.data[0].child_frame_id = odom_msg.child_frame_id;
     tf_msg.transforms.data[0].transform.translation.x = odom_msg.pose.pose.position.x;
     tf_msg.transforms.data[0].transform.translation.y = odom_msg.pose.pose.position.y;
     tf_msg.transforms.data[0].transform.translation.z = odom_msg.pose.pose.position.z;
@@ -219,21 +221,18 @@ static void mbot_publish_state(void) {
     if (ret != RCL_RET_OK) {
         printf("Error publishing TF message: %d\r\n", ret);
     }
-
     // Publish Mbot velocity data
-    mbot_vel_msg.linear.x = mbot_state.vx;
-    mbot_vel_msg.linear.y = mbot_state.vy;
-    mbot_vel_msg.angular.z = mbot_state.wz;
+    mbot_vel_msg.linear.x = local_state.vx;
+    mbot_vel_msg.linear.y = local_state.vy;
+    mbot_vel_msg.angular.z = local_state.wz;
     ret = rcl_publish(&mbot_vel_publisher, &mbot_vel_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing mbot_vel message: %d\r\n", ret);
     }
-
     // Publish motor velocities
-    // geometry_msgs/Vector3: x=left (MOT_L), y=right (MOT_R), z=unused (MOT_UNUSED)
-    motor_vel_msg.x = mbot_state.wheel_vel[MOT_L];
-    motor_vel_msg.y = mbot_state.wheel_vel[MOT_R];
-    motor_vel_msg.z = mbot_state.wheel_vel[MOT_UNUSED];
+    motor_vel_msg.x = local_state.wheel_vel[MOT_L];
+    motor_vel_msg.y = local_state.wheel_vel[MOT_R];
+    motor_vel_msg.z = local_state.wheel_vel[MOT_UNUSED];
     ret = rcl_publish(&motor_vel_publisher, &motor_vel_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing motor velocity message: %d\r\n", ret);
@@ -242,51 +241,52 @@ static void mbot_publish_state(void) {
 
 // Main robot logic loop, runs at MAIN_LOOP_HZ (called by hardware timer)
 static bool mbot_loop(repeating_timer_t *rt) {
-    mbot_read_encoders();    
-    mbot_read_imu();
-    mbot_read_adc();
-    mbot_calculate_motor_vel();
-    mbot_calculate_diff_body_vel(
-        mbot_state.wheel_vel[MOT_L],
-        mbot_state.wheel_vel[MOT_R],
-        &mbot_state.vx,
-        &mbot_state.vy,
-        &mbot_state.wz
-    );
-    mbot_calculate_odometry(
-        mbot_state.vx,
-        mbot_state.vy,
-        mbot_state.wz,
-        MAIN_LOOP_PERIOD,
-        &mbot_state.odom_x,
-        &mbot_state.odom_y,
-        &mbot_state.odom_theta
-    );
-    
-    int64_t now = time_us_64();
-    mbot_state.timestamp_us = now;
-
-    bool cmd_fresh = (now - mbot_cmd.timestamp_us) < MBOT_TIMEOUT_US;
-
+    {   // Critical section for sensor and state update
+        ENTER_CRITICAL();
+        mbot_read_encoders();    
+        mbot_read_imu();
+        mbot_read_adc();
+        mbot_calculate_motor_vel();
+        mbot_calculate_diff_body_vel(
+            mbot_state.wheel_vel[MOT_L],
+            mbot_state.wheel_vel[MOT_R],
+            &mbot_state.vx,
+            &mbot_state.vy,
+            &mbot_state.wz
+        );
+        mbot_calculate_odometry(
+            mbot_state.vx,
+            mbot_state.vy,
+            mbot_state.wz,
+            MAIN_LOOP_PERIOD,
+            &mbot_state.odom_x,
+            &mbot_state.odom_y,
+            &mbot_state.odom_theta
+        );
+        int64_t now = time_us_64();
+        mbot_state.timestamp_us = now;
+        EXIT_CRITICAL();
+    }
+    // Get command safely
+    mbot_cmd_t local_cmd;
+    get_mbot_cmd_safe(&local_cmd);
+    bool cmd_fresh = (time_us_64() - local_cmd.timestamp_us) < MBOT_TIMEOUT_US;
     float pwm_left = 0.0f, pwm_right = 0.0f;
-
     if (cmd_fresh) {
-        switch (mbot_cmd.drive_mode) {
+        switch (local_cmd.drive_mode) {
             case MODE_MOTOR_PWM:
-                pwm_left = mbot_cmd.motor_pwm[MOT_L];
-                pwm_right = mbot_cmd.motor_pwm[MOT_R];
+                pwm_left = local_cmd.motor_pwm[MOT_L];
+                pwm_right = local_cmd.motor_pwm[MOT_R];
                 break;
             case MODE_MOTOR_VEL_OL:
-                pwm_left = calibrated_pwm_from_vel_cmd(mbot_cmd.wheel_vel[MOT_L], MOT_L);
-                pwm_right = calibrated_pwm_from_vel_cmd(mbot_cmd.wheel_vel[MOT_R], MOT_R);
+                pwm_left = calibrated_pwm_from_vel_cmd(local_cmd.wheel_vel[MOT_L], MOT_L);
+                pwm_right = calibrated_pwm_from_vel_cmd(local_cmd.wheel_vel[MOT_R], MOT_R);
                 break;
             case MODE_MBOT_VEL: {
-                float vel_left = (mbot_cmd.vx - DIFF_BASE_RADIUS * mbot_cmd.wz) / DIFF_WHEEL_RADIUS;
-                float vel_right = (-mbot_cmd.vx - DIFF_BASE_RADIUS * mbot_cmd.wz) / DIFF_WHEEL_RADIUS;
-
+                float vel_left = (local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
+                float vel_right = (-local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
                 float vel_left_comp = params.motor_polarity[MOT_L] * vel_left;
                 float vel_right_comp = params.motor_polarity[MOT_R] * vel_right;
-                
                 pwm_left = calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
                 pwm_right = calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
                 break;
@@ -299,21 +299,20 @@ static bool mbot_loop(repeating_timer_t *rt) {
         pwm_left = 0.0f;
         pwm_right = 0.0f;
     }
-
     // Low-pass filter if enabled
     if (enable_pwm_lpf) {
         pwm_left = rc_filter_march(&mbot_left_pwm_lpf, pwm_left);
         pwm_right = rc_filter_march(&mbot_right_pwm_lpf, pwm_right);
     }
-
     // Set motors
     mbot_motor_set_duty(MOT_L, pwm_left);
     mbot_motor_set_duty(MOT_R, pwm_right);
-
-    // Store to mbot_state.motor_pwm for diagnostics
-    mbot_state.motor_pwm[MOT_L] = pwm_left;
-    mbot_state.motor_pwm[MOT_R] = pwm_right;
-
+    {   // Critical section for storing motor PWM to mbot_state
+        ENTER_CRITICAL();
+        mbot_state.motor_pwm[MOT_L] = pwm_left;
+        mbot_state.motor_pwm[MOT_R] = pwm_right;
+        EXIT_CRITICAL();
+    }
     return true; 
 }
 
@@ -525,4 +524,25 @@ static void print_mbot_params(const mbot_params_t* params) {
     printf("Positive Intercept: %f %f\n", params->itrcpt_pos[MOT_L], params->itrcpt_pos[MOT_R]);
     printf("Negative Slope: %f %f\n", params->slope_neg[MOT_L], params->slope_neg[MOT_R]);
     printf("Negative Intercept: %f %f\n", params->itrcpt_neg[MOT_L], params->itrcpt_neg[MOT_R]);
+}
+
+static void get_mbot_state_safe(mbot_state_t* dest) {
+    ENTER_CRITICAL();
+    *dest = mbot_state;
+    EXIT_CRITICAL();
+}
+static void set_mbot_state_safe(const mbot_state_t* src) {
+    ENTER_CRITICAL();
+    mbot_state = *src;
+    EXIT_CRITICAL();
+}
+static void get_mbot_cmd_safe(mbot_cmd_t* dest) {
+    ENTER_CRITICAL();
+    *dest = mbot_cmd;
+    EXIT_CRITICAL();
+}
+static void set_mbot_cmd_safe(const mbot_cmd_t* src) {
+    ENTER_CRITICAL();
+    mbot_cmd = *src;
+    EXIT_CRITICAL();
 }
