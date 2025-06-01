@@ -99,7 +99,7 @@ int mbot_init_micro_ros(void) {
         while(1) { tight_loop_contents(); }
     }
         
-    ret = rclc_node_init_default(&node, "microros_node", "", &support);
+    ret = rclc_node_init_default(&node, "mbot_firmware_node", "", &support);
     if (ret != RCL_RET_OK) {
         printf("rclc_node_init_default failed: %d\n", ret);
         rclc_support_fini(&support);
