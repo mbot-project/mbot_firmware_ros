@@ -12,13 +12,6 @@
 #include "config/mbot_classic_config.h"
 #include <hardware/sync.h>
 
-// Message types
-#include <std_msgs/msg/float32_multi_array.h>
-#include <std_msgs/msg/int32_multi_array.h>
-#include <sensor_msgs/msg/imu.h>
-#include <geometry_msgs/msg/twist.h>
-#include <nav_msgs/msg/odometry.h>
-
 // Critical section macros
 #define ENTER_CRITICAL() uint32_t __irq = save_and_disable_interrupts()
 #define EXIT_CRITICAL() restore_interrupts(__irq)

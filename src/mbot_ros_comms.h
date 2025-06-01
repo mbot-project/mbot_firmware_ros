@@ -4,12 +4,14 @@
 #include <rcl/rcl.h>
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
-#include <geometry_msgs/msg/vector3.h>
 #include <sensor_msgs/msg/imu.h>
 #include <geometry_msgs/msg/twist.h>
 #include <nav_msgs/msg/odometry.h>
 #include <geometry_msgs/msg/transform_stamped.h>
 #include <tf2_msgs/msg/tf_message.h>
+#include <mbot_interfaces/msg/encoders.h>
+#include <mbot_interfaces/msg/motor_velocity.h>
+#include <mbot_interfaces/msg/motor_pwm.h>
 
 // Extern declarations for ROS objects
 
@@ -24,7 +26,7 @@ extern rcl_publisher_t tf_publisher;
 extern sensor_msgs__msg__Imu imu_msg;
 extern nav_msgs__msg__Odometry odom_msg;
 extern geometry_msgs__msg__Twist mbot_vel_msg;
-extern geometry_msgs__msg__Vector3 motor_vel_msg; // x: left (MOT_L), y: right (MOT_R), z: unused (MOT_UNUSED)
+extern mbot_interfaces__msg__MotorVelocity motor_vel_msg;
 extern tf2_msgs__msg__TFMessage tf_msg;
 
 // Subscribers
@@ -34,8 +36,8 @@ extern rcl_subscription_t motor_pwm_cmd_subscriber;
 
 // Subscription Message Buffers
 extern geometry_msgs__msg__Twist cmd_vel_msg_buffer;
-extern geometry_msgs__msg__Vector3 motor_vel_cmd_msg_buffer; // x: left, y: right, z: unused
-extern geometry_msgs__msg__Vector3 motor_pwm_cmd_msg_buffer; // x: left, y: right, z: unused
+extern mbot_interfaces__msg__MotorVelocity motor_vel_cmd_msg_buffer;
+extern mbot_interfaces__msg__MotorPWM motor_pwm_cmd_msg_buffer;
 
 // Initialization functions
 int mbot_ros_comms_init_messages(rcl_allocator_t* allocator);

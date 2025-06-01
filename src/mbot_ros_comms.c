@@ -13,7 +13,7 @@ rcl_publisher_t tf_publisher;
 sensor_msgs__msg__Imu imu_msg;
 nav_msgs__msg__Odometry odom_msg;
 geometry_msgs__msg__Twist mbot_vel_msg; 
-geometry_msgs__msg__Vector3 motor_vel_msg; // x: left (MOT_L), y: right (MOT_R), z: unused (MOT_UNUSED)
+mbot_interfaces__msg__MotorVelocity motor_vel_msg;
 tf2_msgs__msg__TFMessage tf_msg;
 
 rcl_subscription_t cmd_vel_subscriber;
@@ -21,8 +21,8 @@ rcl_subscription_t motor_vel_cmd_subscriber;
 rcl_subscription_t motor_pwm_cmd_subscriber;
 
 geometry_msgs__msg__Twist cmd_vel_msg_buffer; 
-geometry_msgs__msg__Vector3 motor_vel_cmd_msg_buffer; // x: left, y: right, z: unused
-geometry_msgs__msg__Vector3 motor_pwm_cmd_msg_buffer; // x: left, y: right, z: unused
+mbot_interfaces__msg__MotorVelocity motor_vel_cmd_msg_buffer;
+mbot_interfaces__msg__MotorPWM motor_pwm_cmd_msg_buffer;
 
 #define FRAME_ID_CAPACITY 16
 
@@ -58,7 +58,7 @@ int mbot_ros_comms_init_messages(rcl_allocator_t* allocator) {
     // Zero all message structs for safe initialization
     memset(&mbot_vel_msg, 0, sizeof(mbot_vel_msg));
     memset(&cmd_vel_msg_buffer, 0, sizeof(cmd_vel_msg_buffer));
-    memset(&motor_vel_msg, 0, sizeof(motor_vel_msg)); // geometry_msgs/Vector3: x=left (MOT_L), y=right (MOT_R), z=unused (MOT_UNUSED)
+    memset(&motor_vel_msg, 0, sizeof(motor_vel_msg));
     memset(&motor_vel_cmd_msg_buffer, 0, sizeof(motor_vel_cmd_msg_buffer)); // subscriber buffer
     memset(&motor_pwm_cmd_msg_buffer, 0, sizeof(motor_pwm_cmd_msg_buffer)); // subscriber buffer
 
@@ -91,7 +91,7 @@ int mbot_ros_comms_init_publishers(rcl_node_t *node) {
     ret = rclc_publisher_init_default(
         &motor_vel_publisher,
         node,
-        ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Vector3),
+        ROSIDL_GET_MSG_TYPE_SUPPORT(mbot_interfaces, msg, MotorVelocity),
         "motor_vel");
     if (ret != RCL_RET_OK) { printf("[FATAL] Failed to init motor_vel_publisher: %d\n", ret); fflush(stdout); return MBOT_ERROR; }
 
@@ -117,14 +117,14 @@ int mbot_ros_comms_init_subscribers(rcl_node_t *node) {
     ret = rclc_subscription_init_default(
         &motor_vel_cmd_subscriber,
         node,
-        ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Vector3),
+        ROSIDL_GET_MSG_TYPE_SUPPORT(mbot_interfaces, msg, MotorVelocity),
         "motor_vel_cmd");
     if (ret != RCL_RET_OK) { printf("[FATAL] Failed to init motor_vel_cmd_subscriber: %d\n", ret); fflush(stdout); return MBOT_ERROR; }
 
     ret = rclc_subscription_init_default(
         &motor_pwm_cmd_subscriber,
         node,
-        ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Vector3),
+        ROSIDL_GET_MSG_TYPE_SUPPORT(mbot_interfaces, msg, MotorPWM),
         "motor_pwm_cmd");
     if (ret != RCL_RET_OK) { printf("[FATAL] Failed to init motor_pwm_cmd_subscriber: %d\n", ret); fflush(stdout); return MBOT_ERROR; }
     
@@ -141,20 +141,18 @@ void cmd_vel_callback(const void * msgin) {
 }
 
 void motor_vel_cmd_callback(const void * msgin) {
-    // geometry_msgs/Vector3: x=left (MOT_L), y=right (MOT_R), z=unused (MOT_UNUSED)
-    const geometry_msgs__msg__Vector3 * vel_msg = (const geometry_msgs__msg__Vector3 *)msgin;
+    const mbot_interfaces__msg__MotorVelocity * vel_msg = (const mbot_interfaces__msg__MotorVelocity *)msgin;
     mbot_cmd.timestamp_us = time_us_64();
-    mbot_cmd.wheel_vel[MOT_L] = vel_msg->x;
-    mbot_cmd.wheel_vel[MOT_R] = vel_msg->y;
+    mbot_cmd.wheel_vel[MOT_L] = vel_msg->velocity[MOT_L];
+    mbot_cmd.wheel_vel[MOT_R] = vel_msg->velocity[MOT_R];
     mbot_cmd.drive_mode = MODE_MOTOR_VEL_OL;
 }
 
 void motor_pwm_cmd_callback(const void * msgin) {
-    // geometry_msgs/Vector3: x=left (MOT_L), y=right (MOT_R), z=unused (MOT_UNUSED)
-    const geometry_msgs__msg__Vector3 * pwm_msg = (const geometry_msgs__msg__Vector3 *)msgin;
+    const mbot_interfaces__msg__MotorPWM * pwm_msg = (const mbot_interfaces__msg__MotorPWM *)msgin;
     mbot_cmd.timestamp_us = time_us_64();
-    mbot_cmd.motor_pwm[MOT_L] = pwm_msg->x;
-    mbot_cmd.motor_pwm[MOT_R] = pwm_msg->y;
+    mbot_cmd.motor_pwm[MOT_L] = pwm_msg->pwm[MOT_L];
+    mbot_cmd.motor_pwm[MOT_R] = pwm_msg->pwm[MOT_R];
     mbot_cmd.drive_mode = MODE_MOTOR_PWM;
 }
 

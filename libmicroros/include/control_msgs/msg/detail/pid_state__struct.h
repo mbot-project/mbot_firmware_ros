@@ -30,16 +30,27 @@ typedef struct control_msgs__msg__PidState
 {
   std_msgs__msg__Header header;
   builtin_interfaces__msg__Duration timestep;
+  /// error = target - state
   double error;
+  /// derivative of error
   double error_dot;
+  /// equals error
   double p_error;
+  /// weighted integral of error
   double i_error;
+  /// equals derivative of error
   double d_error;
+  /// proportional gain
   double p_term;
+  /// integral gain
   double i_term;
+  /// derivative gain
   double d_term;
+  /// upper integral clamp.
   double i_max;
+  /// lower integral clamp.
   double i_min;
+  /// output of the PID controller
   double output;
 } control_msgs__msg__PidState;
 

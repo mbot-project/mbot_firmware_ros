@@ -29,15 +29,11 @@ extern "C"
 // Member 'feedback'
 // Member 'error'
 // Member 'output'
-// Member 'desired'
-// Member 'actual'
 #include "trajectory_msgs/msg/detail/joint_trajectory_point__struct.h"
 // Member 'multi_dof_reference'
 // Member 'multi_dof_feedback'
 // Member 'multi_dof_error'
 // Member 'multi_dof_output'
-// Member 'multi_dof_desired'
-// Member 'multi_dof_actual'
 #include "trajectory_msgs/msg/detail/multi_dof_joint_trajectory_point__struct.h"
 
 /// Struct defined in msg/JointTrajectoryControllerState in the package control_msgs.
@@ -57,9 +53,6 @@ typedef struct control_msgs__msg__JointTrajectoryControllerState
   trajectory_msgs__msg__JointTrajectoryPoint error;
   /// Current output of the controller.
   trajectory_msgs__msg__JointTrajectoryPoint output;
-  /// -- deprecated --
-  trajectory_msgs__msg__JointTrajectoryPoint desired;
-  trajectory_msgs__msg__JointTrajectoryPoint actual;
   rosidl_runtime_c__String__Sequence multi_dof_joint_names;
   /// The set point, that is, desired state.
   trajectory_msgs__msg__MultiDOFJointTrajectoryPoint multi_dof_reference;
@@ -69,9 +62,8 @@ typedef struct control_msgs__msg__JointTrajectoryControllerState
   trajectory_msgs__msg__MultiDOFJointTrajectoryPoint multi_dof_error;
   /// Current output of the controller.
   trajectory_msgs__msg__MultiDOFJointTrajectoryPoint multi_dof_output;
-  /// -- deprecated --
-  trajectory_msgs__msg__MultiDOFJointTrajectoryPoint multi_dof_desired;
-  trajectory_msgs__msg__MultiDOFJointTrajectoryPoint multi_dof_actual;
+  /// The speed scaling factor the trajectory is currently being executed with
+  double speed_scaling_factor;
 } control_msgs__msg__JointTrajectoryControllerState;
 
 // Struct for a sequence of control_msgs__msg__JointTrajectoryControllerState.

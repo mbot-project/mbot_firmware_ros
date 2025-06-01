@@ -230,9 +230,9 @@ static void mbot_publish_state(void) {
         printf("Error publishing mbot_vel message: %d\r\n", ret);
     }
     // Publish motor velocities
-    motor_vel_msg.x = local_state.wheel_vel[MOT_L];
-    motor_vel_msg.y = local_state.wheel_vel[MOT_R];
-    motor_vel_msg.z = local_state.wheel_vel[MOT_UNUSED];
+    motor_vel_msg.velocity[MOT_L] = local_state.wheel_vel[MOT_L];
+    motor_vel_msg.velocity[MOT_R] = local_state.wheel_vel[MOT_R];
+    motor_vel_msg.velocity[MOT_UNUSED] = 0.0f;
     ret = rcl_publish(&motor_vel_publisher, &motor_vel_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing motor velocity message: %d\r\n", ret);
