@@ -237,6 +237,16 @@ static void mbot_publish_state(void) {
     if (ret != RCL_RET_OK) {
         printf("Error publishing motor velocity message: %d\r\n", ret);
     }
+    // Publish encoder data
+    for (int i = 0; i < 3; i++) {
+        encoders_msg.ticks[i] = local_state.encoder_ticks[i];
+        encoders_msg.delta_ticks[i] = local_state.encoder_delta_ticks[i];
+    }
+    encoders_msg.delta_time = (int32_t)local_state.encoder_delta_t;
+    ret = rcl_publish(&encoders_publisher, &encoders_msg, NULL);
+    if (ret != RCL_RET_OK) {
+        printf("Error publishing encoders message: %d\r\n", ret);
+    }
 }
 
 // Main robot logic loop, runs at MAIN_LOOP_HZ (called by hardware timer)

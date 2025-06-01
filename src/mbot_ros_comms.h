@@ -21,6 +21,7 @@ extern rcl_publisher_t odom_publisher;
 extern rcl_publisher_t mbot_vel_publisher;
 extern rcl_publisher_t motor_vel_publisher;
 extern rcl_publisher_t tf_publisher;
+extern rcl_publisher_t encoders_publisher;
 
 // Published Messages
 extern sensor_msgs__msg__Imu imu_msg;
@@ -28,6 +29,7 @@ extern nav_msgs__msg__Odometry odom_msg;
 extern geometry_msgs__msg__Twist mbot_vel_msg;
 extern mbot_interfaces__msg__MotorVelocity motor_vel_msg;
 extern tf2_msgs__msg__TFMessage tf_msg;
+extern mbot_interfaces__msg__Encoders encoders_msg;
 
 // Subscribers
 extern rcl_subscription_t cmd_vel_subscriber;
