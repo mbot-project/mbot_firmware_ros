@@ -52,6 +52,10 @@ typedef struct {
     // Encoder data
     int64_t last_encoder_time;
     int64_t encoder_delta_t;
+    // PID parameters
+    float kp;
+    float ki;
+    float kd;
 } mbot_state_t;
 
 // Command structure
