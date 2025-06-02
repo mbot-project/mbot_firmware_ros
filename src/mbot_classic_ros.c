@@ -78,74 +78,13 @@ static void mbot_calculate_motor_vel(void);
 static void mbot_calculate_diff_body_vel(float wheel_left_vel, float wheel_right_vel, float* vx, float* vy, float* wz);
 static void print_mbot_params(const mbot_params_t* params);
 static bool parameter_callback(const Parameter * old_param, const Parameter * new_param, void * context);
+static int init_parameter_server(void);
 
 // Thread-safe helpers for mbot_state and mbot_cmd
 static void get_mbot_state_safe(mbot_state_t* dest);
 static void set_mbot_state_safe(const mbot_state_t* src);
 static void get_mbot_cmd_safe(mbot_cmd_t* dest);
 static void set_mbot_cmd_safe(const mbot_cmd_t* src);
-
-static int init_parameter_server(void) {
-    rcl_ret_t ret;
-    
-    // Initialize parameter server with options for low memory mode
-    rclc_parameter_options_t options = {
-        .notify_changed_over_dds = false,
-        .max_params = 3,  // We only need 3 parameters
-        .allow_undeclared_parameters = false,
-        .low_mem_mode = true
-    };
-    
-    ret = rclc_parameter_server_init_with_option(&parameter_server, &node, &options);
-    if (ret != RCL_RET_OK) {
-        printf("[FATAL] Failed to init parameter server: %d\n", ret);
-        return MBOT_ERROR;
-    }
-
-    // Get current state for initial values
-    mbot_state_t local_state;
-    get_mbot_state_safe(&local_state);
-
-    // Add parameters
-    ret = rclc_add_parameter(&parameter_server, "kp", RCLC_PARAMETER_DOUBLE);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to add kp parameter: %d\n", ret);
-        return MBOT_ERROR;
-    }
-    
-    ret = rclc_add_parameter(&parameter_server, "ki", RCLC_PARAMETER_DOUBLE);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to add ki parameter: %d\n", ret);
-        return MBOT_ERROR;
-    }
-    
-    ret = rclc_add_parameter(&parameter_server, "kd", RCLC_PARAMETER_DOUBLE);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to add kd parameter: %d\n", ret);
-        return MBOT_ERROR;
-    }
-
-    // Set initial values
-    ret = rclc_parameter_set_double(&parameter_server, "kp", local_state.kp);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to set initial kp value: %d\n", ret);
-        return MBOT_ERROR;
-    }
-    
-    ret = rclc_parameter_set_double(&parameter_server, "ki", local_state.ki);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to set initial ki value: %d\n", ret);
-        return MBOT_ERROR;
-    }
-    
-    ret = rclc_parameter_set_double(&parameter_server, "kd", local_state.kd);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to set initial kd value: %d\n", ret);
-        return MBOT_ERROR;
-    }
-
-    return MBOT_OK;
-}
 
 // Initialize microROS
 int mbot_init_micro_ros(void) {
@@ -679,4 +618,66 @@ static void set_mbot_cmd_safe(const mbot_cmd_t* src) {
     ENTER_CRITICAL();
     mbot_cmd = *src;
     EXIT_CRITICAL();
+}
+
+static int init_parameter_server(void) {
+    rcl_ret_t ret;
+    
+    // Initialize parameter server with options for low memory mode
+    rclc_parameter_options_t options = {
+        .notify_changed_over_dds = false,
+        .max_params = 3,  // We only need 3 parameters
+        .allow_undeclared_parameters = false,
+        .low_mem_mode = true
+    };
+    
+    ret = rclc_parameter_server_init_with_option(&parameter_server, &node, &options);
+    if (ret != RCL_RET_OK) {
+        printf("[FATAL] Failed to init parameter server: %d\n", ret);
+        return MBOT_ERROR;
+    }
+
+    // Get current state for initial values
+    mbot_state_t local_state;
+    get_mbot_state_safe(&local_state);
+
+    // Add parameters
+    ret = rclc_add_parameter(&parameter_server, "kp", RCLC_PARAMETER_DOUBLE);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to add kp parameter: %d\n", ret);
+        return MBOT_ERROR;
+    }
+    
+    ret = rclc_add_parameter(&parameter_server, "ki", RCLC_PARAMETER_DOUBLE);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to add ki parameter: %d\n", ret);
+        return MBOT_ERROR;
+    }
+    
+    ret = rclc_add_parameter(&parameter_server, "kd", RCLC_PARAMETER_DOUBLE);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to add kd parameter: %d\n", ret);
+        return MBOT_ERROR;
+    }
+
+    // Set initial values
+    ret = rclc_parameter_set_double(&parameter_server, "kp", local_state.kp);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to set initial kp value: %d\n", ret);
+        return MBOT_ERROR;
+    }
+    
+    ret = rclc_parameter_set_double(&parameter_server, "ki", local_state.ki);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to set initial ki value: %d\n", ret);
+        return MBOT_ERROR;
+    }
+    
+    ret = rclc_parameter_set_double(&parameter_server, "kd", local_state.kd);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to set initial kd value: %d\n", ret);
+        return MBOT_ERROR;
+    }
+
+    return MBOT_OK;
 }
