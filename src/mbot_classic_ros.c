@@ -5,6 +5,7 @@
 #include <math.h>
 #include <rcl/error_handling.h>
 #include <rclc/executor.h>
+#include <rclc_parameter/rclc_parameter.h>
 #include <rmw_microros/rmw_microros.h>
 #include <rmw_microros/time_sync.h>
 #include <pico/stdlib.h>
@@ -55,6 +56,7 @@ static rcl_allocator_t allocator;
 static rclc_support_t support;
 static rcl_node_t node;
 static rclc_executor_t executor;
+static rclc_parameter_server_t parameter_server;
 
 // Timer for periodic publishing
 static rcl_timer_t ros_publish_timer;
@@ -75,12 +77,75 @@ static float calibrated_pwm_from_vel_cmd(float vel_cmd, int motor_idx);
 static void mbot_calculate_motor_vel(void);
 static void mbot_calculate_diff_body_vel(float wheel_left_vel, float wheel_right_vel, float* vx, float* vy, float* wz);
 static void print_mbot_params(const mbot_params_t* params);
+static bool parameter_callback(const Parameter * old_param, const Parameter * new_param, void * context);
 
 // Thread-safe helpers for mbot_state and mbot_cmd
 static void get_mbot_state_safe(mbot_state_t* dest);
 static void set_mbot_state_safe(const mbot_state_t* src);
 static void get_mbot_cmd_safe(mbot_cmd_t* dest);
 static void set_mbot_cmd_safe(const mbot_cmd_t* src);
+
+static int init_parameter_server(void) {
+    rcl_ret_t ret;
+    
+    // Initialize parameter server with options for low memory mode
+    rclc_parameter_options_t options = {
+        .notify_changed_over_dds = false,
+        .max_params = 3,  // We only need 3 parameters
+        .allow_undeclared_parameters = false,
+        .low_mem_mode = true
+    };
+    
+    ret = rclc_parameter_server_init_with_option(&parameter_server, &node, &options);
+    if (ret != RCL_RET_OK) {
+        printf("[FATAL] Failed to init parameter server: %d\n", ret);
+        return MBOT_ERROR;
+    }
+
+    // Get current state for initial values
+    mbot_state_t local_state;
+    get_mbot_state_safe(&local_state);
+
+    // Add parameters
+    ret = rclc_add_parameter(&parameter_server, "kp", RCLC_PARAMETER_DOUBLE);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to add kp parameter: %d\n", ret);
+        return MBOT_ERROR;
+    }
+    
+    ret = rclc_add_parameter(&parameter_server, "ki", RCLC_PARAMETER_DOUBLE);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to add ki parameter: %d\n", ret);
+        return MBOT_ERROR;
+    }
+    
+    ret = rclc_add_parameter(&parameter_server, "kd", RCLC_PARAMETER_DOUBLE);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to add kd parameter: %d\n", ret);
+        return MBOT_ERROR;
+    }
+
+    // Set initial values
+    ret = rclc_parameter_set_double(&parameter_server, "kp", local_state.kp);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to set initial kp value: %d\n", ret);
+        return MBOT_ERROR;
+    }
+    
+    ret = rclc_parameter_set_double(&parameter_server, "ki", local_state.ki);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to set initial ki value: %d\n", ret);
+        return MBOT_ERROR;
+    }
+    
+    ret = rclc_parameter_set_double(&parameter_server, "kd", local_state.kd);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to set initial kd value: %d\n", ret);
+        return MBOT_ERROR;
+    }
+
+    return MBOT_OK;
+}
 
 // Initialize microROS
 int mbot_init_micro_ros(void) {
@@ -115,6 +180,10 @@ int mbot_init_micro_ros(void) {
     ret = mbot_ros_comms_init_subscribers(&node);
     if (ret != MBOT_OK) return MBOT_ERROR;
 
+    // Initialize parameter server
+    ret = init_parameter_server();
+    if (ret != MBOT_OK) return MBOT_ERROR;
+
     ret = rclc_timer_init_default(
         &ros_publish_timer,
         &support,
@@ -125,8 +194,10 @@ int mbot_init_micro_ros(void) {
         return MBOT_ERROR;
     }
  
-    ret = rclc_executor_init(&executor, &support.context, 5, &allocator);
+    // Initialize executor with enough handles for parameter server
+    ret = rclc_executor_init(&executor, &support.context, RCLC_EXECUTOR_PARAMETER_SERVER_HANDLES + 5, &allocator);
     if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to init executor: %d\n", ret);
         return MBOT_ERROR;
     }
     
@@ -139,6 +210,13 @@ int mbot_init_micro_ros(void) {
     ret = rcl_timer_call(&ros_publish_timer);
     if (ret != RCL_RET_OK) {
         printf("[ERROR] Timer call failed: %d\n", ret);
+    }
+
+    // Add parameter server to executor
+    ret = rclc_executor_add_parameter_server(&executor, &parameter_server, parameter_callback);
+    if (ret != RCL_RET_OK) {
+        printf("[ERROR] Failed to add parameter server to executor: %d\n", ret);
+        return MBOT_ERROR;
     }
 
     ret = mbot_ros_comms_add_to_executor(&executor);
@@ -188,6 +266,7 @@ static void mbot_publish_state(void) {
     if (ret != RCL_RET_OK) {
         printf("Error publishing IMU message: %d\r\n", ret);
     }
+    
     // Publish odometry data
     odom_msg.header.stamp.sec = now / 1000000000;
     odom_msg.header.stamp.nanosec = now % 1000000000;
@@ -207,6 +286,7 @@ static void mbot_publish_state(void) {
     if (ret != RCL_RET_OK) {
         printf("Error publishing odometry message: %d\r\n", ret);
     }
+    
     // Publish odom->base_footprint TF as tf2_msgs/msg/TFMessage
     tf_msg.transforms.data[0].header.stamp.sec = now / 1000000000;
     tf_msg.transforms.data[0].header.stamp.nanosec = now % 1000000000;
@@ -221,6 +301,7 @@ static void mbot_publish_state(void) {
     if (ret != RCL_RET_OK) {
         printf("Error publishing TF message: %d\r\n", ret);
     }
+    
     // Publish Mbot velocity data
     mbot_vel_msg.linear.x = local_state.vx;
     mbot_vel_msg.linear.y = local_state.vy;
@@ -229,6 +310,7 @@ static void mbot_publish_state(void) {
     if (ret != RCL_RET_OK) {
         printf("Error publishing mbot_vel message: %d\r\n", ret);
     }
+    
     // Publish motor velocities
     motor_vel_msg.velocity[MOT_L] = local_state.wheel_vel[MOT_L];
     motor_vel_msg.velocity[MOT_R] = local_state.wheel_vel[MOT_R];
@@ -237,6 +319,7 @@ static void mbot_publish_state(void) {
     if (ret != RCL_RET_OK) {
         printf("Error publishing motor velocity message: %d\r\n", ret);
     }
+    
     // Publish encoder data
     for (int i = 0; i < 3; i++) {
         encoders_msg.ticks[i] = local_state.encoder_ticks[i];
@@ -277,11 +360,13 @@ static bool mbot_loop(repeating_timer_t *rt) {
         mbot_state.timestamp_us = now;
         EXIT_CRITICAL();
     }
+
     // Get command safely
     mbot_cmd_t local_cmd;
     get_mbot_cmd_safe(&local_cmd);
     bool cmd_fresh = (time_us_64() - local_cmd.timestamp_us) < MBOT_TIMEOUT_US;
     float pwm_left = 0.0f, pwm_right = 0.0f;
+
     if (cmd_fresh) {
         switch (local_cmd.drive_mode) {
             case MODE_MOTOR_PWM:
@@ -309,20 +394,24 @@ static bool mbot_loop(repeating_timer_t *rt) {
         pwm_left = 0.0f;
         pwm_right = 0.0f;
     }
+
     // Low-pass filter if enabled
     if (enable_pwm_lpf) {
         pwm_left = rc_filter_march(&mbot_left_pwm_lpf, pwm_left);
         pwm_right = rc_filter_march(&mbot_right_pwm_lpf, pwm_right);
     }
+
     // Set motors
     mbot_motor_set_duty(MOT_L, pwm_left);
     mbot_motor_set_duty(MOT_R, pwm_right);
+
     {   // Critical section for storing motor PWM to mbot_state
         ENTER_CRITICAL();
         mbot_state.motor_pwm[MOT_L] = pwm_left;
         mbot_state.motor_pwm[MOT_R] = pwm_right;
         EXIT_CRITICAL();
     }
+
     return true; 
 }
 
@@ -468,7 +557,6 @@ static void mbot_read_encoders(void) {
     int64_t now = time_us_64();
 
     // Calculate actual delta time since last encoder read
-    // mbot_state.last_encoder_time is initialized in main() before the loop starts
     mbot_state.encoder_delta_t = now - mbot_state.last_encoder_time;
     
     // If dt is zero or negative (e.g. time_us_64 wraps or error), use nominal period
@@ -534,6 +622,42 @@ static void print_mbot_params(const mbot_params_t* params) {
     printf("Positive Intercept: %f %f\n", params->itrcpt_pos[MOT_L], params->itrcpt_pos[MOT_R]);
     printf("Negative Slope: %f %f\n", params->slope_neg[MOT_L], params->slope_neg[MOT_R]);
     printf("Negative Intercept: %f %f\n", params->itrcpt_neg[MOT_L], params->itrcpt_neg[MOT_R]);
+}
+
+static bool parameter_callback(const Parameter * old_param, const Parameter * new_param, void * context) {
+    if (new_param == NULL) {
+        // Parameter deletion not allowed
+        return false;
+    }
+
+    mbot_state_t local_state;
+    get_mbot_state_safe(&local_state);
+
+    const char* param_name = new_param->name.data;
+    bool param_updated = false;
+
+    if (strcmp(param_name, "kp") == 0) {
+        if (new_param->value.type == RCLC_PARAMETER_DOUBLE) {
+            local_state.kp = new_param->value.double_value;
+            param_updated = true;
+        }
+    } else if (strcmp(param_name, "ki") == 0) {
+        if (new_param->value.type == RCLC_PARAMETER_DOUBLE) {
+            local_state.ki = new_param->value.double_value;
+            param_updated = true;
+        }
+    } else if (strcmp(param_name, "kd") == 0) {
+        if (new_param->value.type == RCLC_PARAMETER_DOUBLE) {
+            local_state.kd = new_param->value.double_value;
+            param_updated = true;
+        }
+    }
+
+    if (param_updated) {
+        set_mbot_state_safe(&local_state);
+        return true;
+    }
+    return false;
 }
 
 static void get_mbot_state_safe(mbot_state_t* dest) {
