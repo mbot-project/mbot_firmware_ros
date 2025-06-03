@@ -37,7 +37,7 @@ typedef struct control_msgs__msg__SingleDOFState
   double feedback;
   /// First time-derivative of the process value. E.g., velocity.
   double feedback_dot;
-  /// The error of the controlled value, essentially process_value - set_point (for a regular PID implementation).
+  /// The error of the controlled value, essentially reference - feedback (for a regular PID implementation).
   double error;
   /// First time-derivative of the error of the controlled value.
   double error_dot;

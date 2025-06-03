@@ -10,13 +10,11 @@
 #include <rclc/rclc.h>
 #include <mbot/defs/mbot_params.h>
 #include "config/mbot_classic_config.h"
+#include <hardware/sync.h>
 
-// Message types
-#include <std_msgs/msg/float32_multi_array.h>
-#include <std_msgs/msg/int32_multi_array.h>
-#include <sensor_msgs/msg/imu.h>
-#include <geometry_msgs/msg/twist.h>
-#include <nav_msgs/msg/odometry.h>
+// Critical section macros
+#define ENTER_CRITICAL() uint32_t __irq = save_and_disable_interrupts()
+#define EXIT_CRITICAL() restore_interrupts(__irq)
 
 // Drive mode definitions
 enum drive_modes
@@ -54,6 +52,10 @@ typedef struct {
     // Encoder data
     int64_t last_encoder_time;
     int64_t encoder_delta_t;
+    // PID parameters
+    float kp;
+    float ki;
+    float kd;
 } mbot_state_t;
 
 // Command structure
