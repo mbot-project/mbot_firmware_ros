@@ -1,27 +1,18 @@
 # MBot Classic PID Configuration
 # All gains are initial tuning values and may need adjustment
 
-# Left wheel velocity controller
-left_wheel:
-  kp: 0.0
-  ki: 0.0
-  kd: 0.0
-
-# Right wheel velocity controller
-right_wheel:
-  kp: 0.0
-  ki: 0.0
-  kd: 0.0
-
-# Body linear velocity controller (vx)
-body_vel_vx:
-  kp: 0.0
-  ki: 0.0
-  kd: 0.0
-
-# Body angular velocity controller (wz)
-body_vel_wz:
-  kp: 0.0
-  ki: 0.0
-  kd: 0.0
+mbot_control_node:
+  ros__parameters:
+    left_wheel.kp: 2.0
+    left_wheel.ki: 0.0
+    left_wheel.kd: 0.0
+    right_wheel.kp: 1.0
+    right_wheel.ki: 0.0
+    right_wheel.kd: 0.0
+    body_vel_vx.kp: 0.0
+    body_vel_vx.ki: 0.0
+    body_vel_vx.kd: 0.0
+    body_vel_wz.kp: 0.0
+    body_vel_wz.ki: 0.0
+    body_vel_wz.kd: 0.0
 
