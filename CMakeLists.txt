@@ -74,6 +74,44 @@ target_compile_definitions(mbot_classic_ros PRIVATE
 )
 
 #=============================================================================
+# Main MBot Basic ROS Executable
+#=============================================================================
+add_executable(mbot_basic_ros
+    src/mbot_basic_ros.c
+    src/mbot_basic_ros.h
+    src/mbot_odometry.c
+    src/mbot_odometry.h
+    src/mbot_print.c
+    src/mbot_print.h
+    src/mbot_ros_basic_comms.c
+    src/mbot_ros_basic_comms.h
+)
+
+target_link_libraries(mbot_basic_ros
+    ${COMMON_LIBS}
+    pico_multicore
+    microros
+    mbotlib
+    rclib
+    comms
+)
+
+# Configure USB and output settings for main executable
+pico_enable_stdio_usb(mbot_basic_ros 1)
+pico_enable_stdio_uart(mbot_basic_ros 0)
+pico_add_extra_outputs(mbot_basic_ros)
+
+# [DO NOT CHANGE]
+# Disable CRLF handling for better performance with micro-ROS
+# This means when printing to the console you need to use \r\n instead of \n
+target_compile_definitions(mbot_basic_ros PRIVATE 
+    # PICO_UART_ENABLE_CRLF_SUPPORT=0
+    # PICO_STDIO_ENABLE_CRLF_SUPPORT=0
+    # PICO_STDIO_DEFAULT_CRLF=0
+    CFG_TUD_CDC=2
+)
+
+#=============================================================================
 # Test Programs
 #=============================================================================
 
