@@ -155,7 +155,7 @@ void motor_vel_cmd_callback(const void * msgin) {
     mbot_cmd.timestamp_us = time_us_64();
     mbot_cmd.wheel_vel[MOT_L] = vel_msg->velocity[MOT_L];
     mbot_cmd.wheel_vel[MOT_R] = vel_msg->velocity[MOT_R];
-    mbot_cmd.drive_mode = MODE_MOTOR_VEL_OL;
+    mbot_cmd.drive_mode = MODE_MOTOR_VEL;
 }
 
 void motor_pwm_cmd_callback(const void * msgin) {

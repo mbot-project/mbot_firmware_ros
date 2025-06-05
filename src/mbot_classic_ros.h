@@ -20,7 +20,7 @@
 enum drive_modes
 {
     MODE_MOTOR_PWM = 0,      // Direct PWM control
-    MODE_MOTOR_VEL_OL = 1,   // Open-loop motor velocity control
+    MODE_MOTOR_VEL = 1,   // Open-loop motor velocity control
     MODE_MBOT_VEL = 2        // Robot body velocity control
 };
 

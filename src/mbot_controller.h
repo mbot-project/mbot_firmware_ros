@@ -22,13 +22,17 @@ int init_parameter_server(rclc_parameter_server_t* parameter_server, rcl_node_t*
 bool parameter_callback(const Parameter * old_param, const Parameter * new_param, void * context);
 
 // Init
-int mbot_controller_init(mbot_pid_config_t* pid_gains);
+int mbot_controller_init(void);
 
-// Motor velocity controller
-int mbot_motor_vel_controller(void);
+// Motor velocity controller - returns PWM values for left and right motors
+void mbot_motor_vel_controller(float target_left_vel, float target_right_vel, 
+                              float current_left_vel, float current_right_vel,
+                              float* left_pwm_out, float* right_pwm_out);
 
-// Body velocity controller
-int mbot_body_vel_controller(void);
+// Body velocity controller - returns PWM values for left and right motors
+void mbot_body_vel_controller(float target_vx, float target_wz,
+                             float current_vx, float current_wz,
+                             float* vx_pwm, float* wz_pwm);
 
 // PID gains global config
 extern mbot_pid_config_t pid_gains;

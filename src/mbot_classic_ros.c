@@ -308,7 +308,7 @@ static bool mbot_loop(repeating_timer_t *rt) {
                 pwm_left = local_cmd.motor_pwm[MOT_L];
                 pwm_right = local_cmd.motor_pwm[MOT_R];
                 break;
-            case MODE_MOTOR_VEL_OL:
+            case MODE_MOTOR_VEL:
                 pwm_left = calibrated_pwm_from_vel_cmd(local_cmd.wheel_vel[MOT_L], MOT_L);
                 pwm_right = calibrated_pwm_from_vel_cmd(local_cmd.wheel_vel[MOT_R], MOT_R);
                 break;
