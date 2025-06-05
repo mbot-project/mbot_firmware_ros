@@ -8,6 +8,7 @@ typedef struct {
     float kp;
     float ki;
     float kd;
+    float tf;
 } pid_params_t;
 
 typedef struct {
