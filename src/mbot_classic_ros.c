@@ -299,9 +299,12 @@ static bool mbot_loop(repeating_timer_t *rt) {
 
     // Get command safely
     mbot_cmd_t local_cmd;
+    mbot_state_t local_state;
     get_mbot_cmd_safe(&local_cmd);
+    get_mbot_state_safe(&local_state);
     bool cmd_fresh = (time_us_64() - local_cmd.timestamp_us) < MBOT_TIMEOUT_US;
     float pwm_left = 0.0f, pwm_right = 0.0f;
+    float pid_pwm_left = 0.0f, pid_pwm_right = 0.0f;
     if (cmd_fresh) {
         switch (local_cmd.drive_mode) {
             case MODE_MOTOR_PWM:
@@ -309,16 +312,50 @@ static bool mbot_loop(repeating_timer_t *rt) {
                 pwm_right = local_cmd.motor_pwm[MOT_R];
                 break;
             case MODE_MOTOR_VEL:
-                pwm_left = calibrated_pwm_from_vel_cmd(local_cmd.wheel_vel[MOT_L], MOT_L);
-                pwm_right = calibrated_pwm_from_vel_cmd(local_cmd.wheel_vel[MOT_R], MOT_R);
+                // Feedforward PWM
+                float vel_left_comp = local_cmd.wheel_vel[MOT_L] * params.motor_polarity[MOT_L];
+                float vel_right_comp = local_cmd.wheel_vel[MOT_R] * params.motor_polarity[MOT_R];
+                float ff_pwm_left = calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
+                float ff_pwm_right = calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
+
+                // PID PWM
+                mbot_motor_vel_controller(
+                    vel_left_comp, vel_right_comp,
+                    local_state.wheel_vel[MOT_L], local_state.wheel_vel[MOT_R],
+                    &pid_pwm_left, &pid_pwm_right
+                );
+                // Feedforward + PID PWM
+                pwm_left = ff_pwm_left + pid_pwm_left;
+                pwm_right = ff_pwm_right + pid_pwm_right;
+
                 break;
             case MODE_MBOT_VEL: {
+                // Feedforward PWM
                 float vel_left = (local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
                 float vel_right = (-local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
                 float vel_left_comp = params.motor_polarity[MOT_L] * vel_left;
                 float vel_right_comp = params.motor_polarity[MOT_R] * vel_right;
-                pwm_left = calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
-                pwm_right = calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
+                float ff_pwm_left = calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
+                float ff_pwm_right = calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
+                // PID PWM
+                float vx_pwm = 0.0f, wz_pwm = 0.0f;
+                mbot_body_vel_controller(
+                    local_cmd.vx, local_cmd.wz,
+                    local_state.vx, local_state.wz,
+                    &vx_pwm, &wz_pwm
+                );
+            
+                // Convert body velocity corrections to wheel PWM corrections
+                float pid_pwm_left_raw = (vx_pwm - DIFF_BASE_RADIUS * wz_pwm) / DIFF_WHEEL_RADIUS;
+                float pid_pwm_right_raw = (-vx_pwm - DIFF_BASE_RADIUS * wz_pwm) / DIFF_WHEEL_RADIUS;
+                
+                // Apply motor polarity to PID corrections
+                pid_pwm_left = params.motor_polarity[MOT_L] * pid_pwm_left_raw;
+                pid_pwm_right = params.motor_polarity[MOT_R] * pid_pwm_right_raw;
+            
+                // Feedforward + PID PWM
+                pwm_left = ff_pwm_left + pid_pwm_left;
+                pwm_right = ff_pwm_right + pid_pwm_right;
                 break;
             }
             default:
@@ -329,13 +366,17 @@ static bool mbot_loop(repeating_timer_t *rt) {
         pwm_left = 0.0f;
         pwm_right = 0.0f;
     }
-
+    printf("before low-pass filter\n");
+    printf("pid_pwm_left: %f, pwm_left: %f\n", pid_pwm_left, pwm_left);
+    printf("pid_pwm_right: %f, pwm_right: %f\n", pid_pwm_right, pwm_right);
     // Low-pass filter if enabled
     if (enable_pwm_lpf) {
         pwm_left = rc_filter_march(&mbot_left_pwm_lpf, pwm_left);
         pwm_right = rc_filter_march(&mbot_right_pwm_lpf, pwm_right);
     }
-
+    printf("after low-pass filter\n");
+    printf("pid_pwm_left: %f, pwm_left: %f\n",  pid_pwm_left, pwm_left);
+    printf("pid_pwm_right: %f, pwm_right: %f\n", pid_pwm_right, pwm_right);
     // Set motors
     mbot_motor_set_duty(MOT_L, pwm_left);
     mbot_motor_set_duty(MOT_R, pwm_right);
@@ -368,7 +409,7 @@ int main() {
     printf("--------------------------------\r\n");
 
     mbot_init_hardware();
-
+    mbot_controller_init();
     mbot_read_fram(0, sizeof(params), (uint8_t*)&params);
 
     printf("\nCalibration Parameters:\n");
@@ -432,7 +473,7 @@ int main() {
 
         if (time_us_64() - last_200ms_time > 200000) { // 200ms interval
             last_200ms_time = time_us_64();
-            mbot_print_state(&mbot_state);
+            // mbot_print_state(&mbot_state);
         }
         sleep_ms(10); // Small delay
     }

@@ -7,20 +7,22 @@
 #include <stdio.h>
 #include <string.h>
 
+#define DEFAULT_TF (MAIN_LOOP_PERIOD)  // Tf must be > dt/2 for stability
+
 // Global PID controller variables
 mbot_pid_config_t pid_gains = {
-    .left_wheel = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = 0.0 },
-    .right_wheel = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = 0.0 },
-    .body_vel_vx = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = 0.0 },
-    .body_vel_wz = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = 0.0 },
+    .left_wheel = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
+    .right_wheel = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
+    .body_vel_vx = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
+    .body_vel_wz = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
 };
 static bool pid_updated = false;
 
 // PID filters
-static rc_filter_t left_wheel_pid;
-static rc_filter_t right_wheel_pid;
-static rc_filter_t body_vel_vx_pid;
-static rc_filter_t body_vel_wz_pid;
+rc_filter_t left_wheel_pid;
+rc_filter_t right_wheel_pid;
+rc_filter_t body_vel_vx_pid;
+rc_filter_t body_vel_wz_pid;
 
 int mbot_controller_init(void) {
     // Initialize PID controllers
@@ -63,11 +65,6 @@ int mbot_controller_init(void) {
     rc_filter_enable_saturation(&right_wheel_pid, -1.0, 1.0);
     rc_filter_enable_saturation(&body_vel_vx_pid, -1.0, 1.0);
     rc_filter_enable_saturation(&body_vel_wz_pid, -1.0, 1.0);
-    
-    if (pid_updated) {
-        // TODO
-        pid_updated = false;
-    }
     return MBOT_OK;
 }
 
@@ -100,7 +97,7 @@ int init_parameter_server(rclc_parameter_server_t* parameter_server, rcl_node_t*
     // Initialize parameter server with options for low memory mode
     rclc_parameter_options_t options = {
         .notify_changed_over_dds = false,
-        .max_params = 12,  
+        .max_params = 16,  
         .allow_undeclared_parameters = false,
         .low_mem_mode = false
     };
