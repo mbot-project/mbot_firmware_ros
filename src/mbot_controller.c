@@ -198,6 +198,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.left_wheel.kp = new_param->value.double_value;
             rc_filter_pid(&left_wheel_pid, pid_gains.left_wheel.kp, pid_gains.left_wheel.ki, 
                           pid_gains.left_wheel.kd, pid_gains.left_wheel.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&left_wheel_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "left_wheel.ki") == 0) {
@@ -205,6 +206,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.left_wheel.ki = new_param->value.double_value;
             rc_filter_pid(&left_wheel_pid, pid_gains.left_wheel.kp, pid_gains.left_wheel.ki, 
                           pid_gains.left_wheel.kd, pid_gains.left_wheel.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&left_wheel_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "left_wheel.kd") == 0) {
@@ -212,6 +214,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.left_wheel.kd = new_param->value.double_value;
             rc_filter_pid(&left_wheel_pid, pid_gains.left_wheel.kp, pid_gains.left_wheel.ki, 
                           pid_gains.left_wheel.kd, pid_gains.left_wheel.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&left_wheel_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "left_wheel.tf") == 0) {
@@ -219,6 +222,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.left_wheel.tf = new_param->value.double_value;
             rc_filter_pid(&left_wheel_pid, pid_gains.left_wheel.kp, pid_gains.left_wheel.ki, 
                           pid_gains.left_wheel.kd, pid_gains.left_wheel.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&left_wheel_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "right_wheel.kp") == 0) {
@@ -226,6 +230,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.right_wheel.kp = new_param->value.double_value;
             rc_filter_pid(&right_wheel_pid, pid_gains.right_wheel.kp, pid_gains.right_wheel.ki, 
                           pid_gains.right_wheel.kd, pid_gains.right_wheel.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&right_wheel_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "right_wheel.ki") == 0) {
@@ -233,6 +238,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.right_wheel.ki = new_param->value.double_value;
             rc_filter_pid(&right_wheel_pid, pid_gains.right_wheel.kp, pid_gains.right_wheel.ki, 
                           pid_gains.right_wheel.kd, pid_gains.right_wheel.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&right_wheel_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "right_wheel.kd") == 0) {
@@ -240,6 +246,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.right_wheel.kd = new_param->value.double_value;
             rc_filter_pid(&right_wheel_pid, pid_gains.right_wheel.kp, pid_gains.right_wheel.ki, 
                           pid_gains.right_wheel.kd, pid_gains.right_wheel.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&right_wheel_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "right_wheel.tf") == 0) {
@@ -247,6 +254,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.right_wheel.tf = new_param->value.double_value;
             rc_filter_pid(&right_wheel_pid, pid_gains.right_wheel.kp, pid_gains.right_wheel.ki, 
                           pid_gains.right_wheel.kd, pid_gains.right_wheel.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&right_wheel_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "body_vel_vx.kp") == 0) {
@@ -254,6 +262,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.body_vel_vx.kp = new_param->value.double_value;
             rc_filter_pid(&body_vel_vx_pid, pid_gains.body_vel_vx.kp, pid_gains.body_vel_vx.ki, 
                           pid_gains.body_vel_vx.kd, pid_gains.body_vel_vx.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&body_vel_vx_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "body_vel_vx.ki") == 0) {
@@ -261,6 +270,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.body_vel_vx.ki = new_param->value.double_value;
             rc_filter_pid(&body_vel_vx_pid, pid_gains.body_vel_vx.kp, pid_gains.body_vel_vx.ki, 
                           pid_gains.body_vel_vx.kd, pid_gains.body_vel_vx.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&body_vel_vx_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "body_vel_vx.kd") == 0) {
@@ -268,6 +278,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.body_vel_vx.kd = new_param->value.double_value;
             rc_filter_pid(&body_vel_vx_pid, pid_gains.body_vel_vx.kp, pid_gains.body_vel_vx.ki, 
                           pid_gains.body_vel_vx.kd, pid_gains.body_vel_vx.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&body_vel_vx_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "body_vel_vx.tf") == 0) {
@@ -275,6 +286,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.body_vel_vx.tf = new_param->value.double_value;
             rc_filter_pid(&body_vel_vx_pid, pid_gains.body_vel_vx.kp, pid_gains.body_vel_vx.ki, 
                           pid_gains.body_vel_vx.kd, pid_gains.body_vel_vx.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&body_vel_vx_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "body_vel_wz.kp") == 0) {
@@ -282,6 +294,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.body_vel_wz.kp = new_param->value.double_value;
             rc_filter_pid(&body_vel_wz_pid, pid_gains.body_vel_wz.kp, pid_gains.body_vel_wz.ki, 
                           pid_gains.body_vel_wz.kd, pid_gains.body_vel_wz.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&body_vel_wz_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "body_vel_wz.ki") == 0) {
@@ -289,6 +302,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.body_vel_wz.ki = new_param->value.double_value;
             rc_filter_pid(&body_vel_wz_pid, pid_gains.body_vel_wz.kp, pid_gains.body_vel_wz.ki, 
                           pid_gains.body_vel_wz.kd, pid_gains.body_vel_wz.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&body_vel_wz_pid, -1.0, 1.0);
             pid_updated = true;
         }
     } else if (strcmp(param_name, "body_vel_wz.kd") == 0) {
@@ -296,6 +310,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.body_vel_wz.kd = new_param->value.double_value;
             rc_filter_pid(&body_vel_wz_pid, pid_gains.body_vel_wz.kp, pid_gains.body_vel_wz.ki, 
                           pid_gains.body_vel_wz.kd, pid_gains.body_vel_wz.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&body_vel_wz_pid, -1.0, 1.0);           
             pid_updated = true;
         }
     } else if (strcmp(param_name, "body_vel_wz.tf") == 0) {
@@ -303,6 +318,7 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
             pid_gains.body_vel_wz.tf = new_param->value.double_value;
             rc_filter_pid(&body_vel_wz_pid, pid_gains.body_vel_wz.kp, pid_gains.body_vel_wz.ki, 
                           pid_gains.body_vel_wz.kd, pid_gains.body_vel_wz.tf, MAIN_LOOP_PERIOD);
+            rc_filter_enable_saturation(&body_vel_wz_pid, -1.0, 1.0);
             pid_updated = true;
         }
     }

@@ -315,6 +315,8 @@ static bool mbot_loop(repeating_timer_t *rt) {
                 // Feedforward PWM
                 float vel_left_comp = local_cmd.wheel_vel[MOT_L] * params.motor_polarity[MOT_L];
                 float vel_right_comp = local_cmd.wheel_vel[MOT_R] * params.motor_polarity[MOT_R];
+                printf("vel_left_comp: %f, vel_right_comp: %f\n", vel_left_comp, vel_right_comp);
+                printf("local_state.wheel_vel[MOT_L]: %f, local_state.wheel_vel[MOT_R]: %f\n", local_state.wheel_vel[MOT_L], local_state.wheel_vel[MOT_R]);
                 float ff_pwm_left = calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
                 float ff_pwm_right = calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
 
@@ -366,15 +368,11 @@ static bool mbot_loop(repeating_timer_t *rt) {
         pwm_left = 0.0f;
         pwm_right = 0.0f;
     }
-    printf("before low-pass filter\n");
-    printf("pid_pwm_left: %f, pwm_left: %f\n", pid_pwm_left, pwm_left);
-    printf("pid_pwm_right: %f, pwm_right: %f\n", pid_pwm_right, pwm_right);
     // Low-pass filter if enabled
     if (enable_pwm_lpf) {
         pwm_left = rc_filter_march(&mbot_left_pwm_lpf, pwm_left);
         pwm_right = rc_filter_march(&mbot_right_pwm_lpf, pwm_right);
     }
-    printf("after low-pass filter\n");
     printf("pid_pwm_left: %f, pwm_left: %f\n",  pid_pwm_left, pwm_left);
     printf("pid_pwm_right: %f, pwm_right: %f\n", pid_pwm_right, pwm_right);
     // Set motors
