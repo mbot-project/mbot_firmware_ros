@@ -70,25 +70,25 @@ int mbot_controller_init(void) {
 
 void mbot_motor_vel_controller(float target_left_vel, float target_right_vel, 
                               float current_left_vel, float current_right_vel,
-                              float* left_pwm_out, float* right_pwm_out) {
+                              float* left_correction, float* right_correction) {
     float left_error = target_left_vel - current_left_vel;
     float right_error = target_right_vel - current_right_vel;
     
     // Run PID controllers for each wheel
-    *left_pwm_out = rc_filter_march(&left_wheel_pid, left_error);
-    *right_pwm_out = rc_filter_march(&right_wheel_pid, right_error);
+    *left_correction = rc_filter_march(&left_wheel_pid, left_error);
+    *right_correction = rc_filter_march(&right_wheel_pid, right_error);
 }
 
 void mbot_body_vel_controller(float target_vx, float target_wz,
                              float current_vx, float current_wz,
-                             float* vx_pwm, float* wz_pwm) {
+                             float* vx_correction, float* wz_correction) {
     // Calculate errors in body velocity
     float vx_error = target_vx - current_vx;
     float wz_error = target_wz - current_wz;
     
     // Run PID controllers for forward and angular velocity
-    *vx_pwm = rc_filter_march(&body_vel_vx_pid, vx_error);
-    *wz_pwm = rc_filter_march(&body_vel_wz_pid, wz_error);
+    *vx_correction = rc_filter_march(&body_vel_vx_pid, vx_error);
+    *wz_correction = rc_filter_march(&body_vel_wz_pid, wz_error);
 }
 
 int init_parameter_server(rclc_parameter_server_t* parameter_server, rcl_node_t* node) {

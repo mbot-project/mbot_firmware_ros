@@ -28,12 +28,12 @@ int mbot_controller_init(void);
 // Motor velocity controller - returns PWM values for left and right motors
 void mbot_motor_vel_controller(float target_left_vel, float target_right_vel, 
                               float current_left_vel, float current_right_vel,
-                              float* left_pwm_out, float* right_pwm_out);
+                              float* left_correction, float* right_correction);
 
 // Body velocity controller - returns PWM values for left and right motors
 void mbot_body_vel_controller(float target_vx, float target_wz,
                              float current_vx, float current_wz,
-                             float* vx_pwm, float* wz_pwm);
+                             float* vx_correction, float* wz_correction);
 
 // PID gains global config
 extern mbot_pid_config_t pid_gains;
