@@ -63,7 +63,7 @@ static repeating_timer_t mbot_loop_timer;
 int mbot_init_micro_ros(void);
 int mbot_spin_micro_ros(void);
 static void mbot_publish_state(void);
-static bool mbot_loop(repeating_timer_t *rt);
+static bool mbot_loop(void);  //repeating_timer_t *rt);
 void timer_callback(rcl_timer_t * timer, int64_t last_call_time);
 
 // helper functions
@@ -112,7 +112,7 @@ int mbot_init_micro_ros(void) {
     ret = rclc_timer_init_default(
         &ros_publish_timer,
         &support,
-        RCL_MS_TO_NS((int)(ROS_TIMER_PERIOD * 1000)),
+        RCL_MS_TO_NS((int)(MAIN_LOOP_PERIOD * 1000)),//(int)(ROS_TIMER_PERIOD * 1000)
         timer_callback);
     if (ret != RCL_RET_OK) {
         printf("[ERROR] Timer init failed: %d\n", ret);
@@ -242,8 +242,8 @@ static void mbot_publish_state(void) {
     // Publish encoder ticks
     // geometry_msgs/Vector3: x=left (MOT_L), y=right (MOT_R), z=unused (MOT_UNUSED)
 
-    encoder_msg.header.stamp.sec = now / 1000000000;
-    encoder_msg.header.stamp.nanosec = now % 1000000000;
+    encoder_msg.header.stamp.sec = mbot_state.last_encoder_time / 1000000000;
+    encoder_msg.header.stamp.nanosec = mbot_state.last_encoder_time % 1000000000;
     
 
     encoder_msg.vector.x = mbot_state.encoder_delta_ticks[MOT_L];
@@ -258,7 +258,7 @@ static void mbot_publish_state(void) {
 }
 
 // Main robot logic loop, runs at MAIN_LOOP_HZ (called by hardware timer)
-static bool mbot_loop(repeating_timer_t *rt) {
+static bool mbot_loop(){  //repeating_timer_t *rt) {
     mbot_read_encoders();    
     mbot_read_imu();
     mbot_read_adc();
@@ -279,6 +279,8 @@ static bool mbot_loop(repeating_timer_t *rt) {
         &mbot_state.odom_y,
         &mbot_state.odom_theta
     );
+
+    mbot_publish_state();
     
     int64_t now = time_us_64();
     mbot_state.timestamp_us = now;
@@ -337,7 +339,8 @@ static bool mbot_loop(repeating_timer_t *rt) {
 
 // Timer callback for periodic ROS publishing (runs at ROS_TIMER_HZ)
 void timer_callback(rcl_timer_t * timer, int64_t last_call_time) {
-    mbot_publish_state();
+    // mbot_publish_state();
+    mbot_loop();
 }
 
 /**
@@ -365,12 +368,12 @@ int main() {
         printf("Failed to validate FRAM Data! Error code: %d\n", validate_status);
     }
 
-    printf("\nStarting MBot Loop...\n");
-    mbot_state.last_encoder_time = time_us_64(); 
-    if (!add_repeating_timer_ms((int32_t)(MAIN_LOOP_PERIOD * 1000.0f), mbot_loop, NULL, &mbot_loop_timer)){
-        printf("Failed to add control loop timer! Halting.\r\n");
-        while(1) {tight_loop_contents();}
-    }
+    // printf("\nStarting MBot Loop...\n");
+    // mbot_state.last_encoder_time = time_us_64(); 
+    // if (!add_repeating_timer_ms((int32_t)(MAIN_LOOP_PERIOD * 1000.0f), mbot_loop, NULL, &mbot_loop_timer)){
+    //     printf("Failed to add control loop timer! Halting.\r\n");
+    //     while(1) {tight_loop_contents();}
+    // }
 
     rmw_ret_t rmw_ret = rmw_uros_set_custom_transport(
         true,
