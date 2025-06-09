@@ -1,70 +1,114 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-import time
+from nav_msgs.msg import Odometry, Path
+from geometry_msgs.msg import PoseStamped
+import math
+from tf_transformations import euler_from_quaternion
 
 # Robot parameters
 LINEAR_SPEED = 0.2  # m/s
 SIDE_LENGTH = 1.0   # meters
-TURN_SPEED = 0.5    # rad/s (angular z)
-TURN_ANGLE = 1.5708 # radians (90 deg)
-
-# Calculate durations
-DRIVE_TIME = SIDE_LENGTH / LINEAR_SPEED
-TURN_TIME = TURN_ANGLE / TURN_SPEED
+ANGULAR_SPEED = 0.5 # rad/s
+TURN_ANGLE = math.pi / 2  # 90 degrees in radians
 
 class SquareDriver(Node):
     def __init__(self):
         super().__init__('drive_square')
         self.publisher = self.create_publisher(Twist, '/cmd_vel', 10)
-        self.get_logger().info('Starting square drive: 2 rounds, 1m per side')
+        self.odom_sub = self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
+        self.path_publisher = self.create_publisher(Path, '/path', 10)
+        self.path_msg = Path()
+        self.path_msg.header.frame_id = 'odom'  # or 'map' if you use map frame
+        self.state = 'IDLE'  # IDLE, DRIVE, TURN, DONE
+        self.sides_completed = 0
+        self.start_pos = None
+        self.start_yaw = None
+        self.current_pos = None
+        self.current_yaw = None
+        self.timer = self.create_timer(0.05, self.loop)
+        self.get_logger().info('Starting closed-loop square drive: 1m per side')
 
-    def drive_straight(self, duration):
-        twist = Twist()
-        twist.linear.x = LINEAR_SPEED
-        twist.angular.z = 0.0
-        self.get_logger().info(f'Driving straight for {duration:.2f} s')
-        self._publish_for_duration(twist, duration)
+    def odom_callback(self, msg):
+        self.current_pos = msg.pose.pose.position
+        orientation_q = msg.pose.pose.orientation
+        orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
+        (_, _, yaw) = euler_from_quaternion(orientation_list)
+        self.current_yaw = yaw
 
-    def turn_90_deg(self, duration):
-        twist = Twist()
-        twist.linear.x = 0.0
-        twist.angular.z = TURN_SPEED
-        self.get_logger().info(f'Turning 90 deg for {duration:.2f} s')
-        self._publish_for_duration(twist, duration)
+        # Add pose to path
+        pose_stamped = PoseStamped()
+        pose_stamped.header = msg.header
+        pose_stamped.pose = msg.pose.pose
+        self.path_msg.header.stamp = self.get_clock().now().to_msg()
+        self.path_msg.poses.append(pose_stamped)
+        self.path_publisher.publish(self.path_msg)
 
-    def _publish_for_duration(self, twist, duration, rate_hz=10):
-        rate = 1.0 / rate_hz
-        start = time.time()
-        while time.time() - start < duration:
-            self.publisher.publish(twist)
-            rclpy.spin_once(self, timeout_sec=0)  # allow ROS2 to process events
-            time.sleep(rate)
-        self.stop()
+    def loop(self):
+        if self.current_pos is None or self.current_yaw is None:
+            return  # Wait for odom
+        if self.state == 'IDLE':
+            self.start_pos = (self.current_pos.x, self.current_pos.y)
+            self.state = 'DRIVE'
+            self.get_logger().info(f'Starting side {self.sides_completed + 1}')
+        elif self.state == 'DRIVE':
+            dx = self.current_pos.x - self.start_pos[0]
+            dy = self.current_pos.y - self.start_pos[1]
+            dist = math.hypot(dx, dy)
+            if dist < SIDE_LENGTH:
+                twist = Twist()
+                twist.linear.x = LINEAR_SPEED
+                self.publisher.publish(twist)
+            else:
+                self.stop()
+                self.start_yaw = self.current_yaw
+                self.state = 'TURN'
+                self.get_logger().info('Starting turn')
+        elif self.state == 'TURN':
+            # Compute angle turned (handle wraparound)
+            angle_turned = self.normalize_angle(self.current_yaw - self.start_yaw)
+            if abs(angle_turned) < TURN_ANGLE:
+                twist = Twist()
+                twist.angular.z = ANGULAR_SPEED
+                self.publisher.publish(twist)
+            else:
+                self.stop()
+                self.sides_completed += 1
+                if self.sides_completed >= 4:
+                    self.state = 'DONE'
+                    self.get_logger().info('Finished driving square.')
+                else:
+                    self.state = 'IDLE'
+        elif self.state == 'DONE':
+            self.stop()
+            self.destroy_node()
+            rclpy.shutdown()
 
     def stop(self):
         twist = Twist()
         self.publisher.publish(twist)
-        time.sleep(0.2)
 
-    def run(self):
-        for i in range(8):
-            self.drive_straight(DRIVE_TIME)
-            self.turn_90_deg(TURN_TIME)
-        self.stop()
-        self.get_logger().info('Finished driving square.')
+    @staticmethod
+    def normalize_angle(angle):
+        # Normalize angle to [-pi, pi]
+        while angle > math.pi:
+            angle -= 2 * math.pi
+        while angle < -math.pi:
+            angle += 2 * math.pi
+        return angle
 
 def main(args=None):
     rclpy.init(args=args)
     node = SquareDriver()
     try:
-        node.run()
+        rclpy.spin(node)
     except KeyboardInterrupt:
         node.get_logger().info('Interrupted, stopping robot.')
         node.stop()
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            node.destroy_node()
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
