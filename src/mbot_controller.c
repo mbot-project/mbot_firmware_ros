@@ -16,6 +16,8 @@ mbot_pid_config_t pid_gains = {
     .body_vel_vx = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
     .body_vel_wz = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
 };
+control_mode_t control_mode = CONTROL_MODE_FF_ONLY;
+
 static bool pid_updated = false;
 
 // PID filters
@@ -97,7 +99,7 @@ int init_parameter_server(rclc_parameter_server_t* parameter_server, rcl_node_t*
     // Initialize parameter server with options for low memory mode
     rclc_parameter_options_t options = {
         .notify_changed_over_dds = false,
-        .max_params = 16,  
+        .max_params = 17,  
         .allow_undeclared_parameters = false,
         .low_mem_mode = false
     };
@@ -145,6 +147,9 @@ int init_parameter_server(rclc_parameter_server_t* parameter_server, rcl_node_t*
     ret = rclc_add_parameter(parameter_server, "body_vel_wz.tf", RCLC_PARAMETER_DOUBLE);
     if (ret != RCL_RET_OK) return MBOT_ERROR;
 
+    ret = rclc_add_parameter(parameter_server, "control_mode", RCLC_PARAMETER_INT);
+    if (ret != RCL_RET_OK) return MBOT_ERROR;
+
     // Set initial values for all PID gains from pid_gains
     ret = rclc_parameter_set_double(parameter_server, "left_wheel.kp", pid_gains.left_wheel.kp);
     if (ret != RCL_RET_OK) return MBOT_ERROR;
@@ -181,7 +186,10 @@ int init_parameter_server(rclc_parameter_server_t* parameter_server, rcl_node_t*
     if (ret != RCL_RET_OK) return MBOT_ERROR;
     ret = rclc_parameter_set_double(parameter_server, "body_vel_wz.tf", pid_gains.body_vel_wz.tf);
     if (ret != RCL_RET_OK) return MBOT_ERROR;
-
+    
+    ret = rclc_parameter_set_int(parameter_server, "control_mode", control_mode);
+    if (ret != RCL_RET_OK) return MBOT_ERROR;
+    
     return MBOT_OK;
 }
 
@@ -320,6 +328,11 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
                           pid_gains.body_vel_wz.kd, pid_gains.body_vel_wz.tf, MAIN_LOOP_PERIOD);
             rc_filter_enable_saturation(&body_vel_wz_pid, -1.0, 1.0);
             pid_updated = true;
+        }
+    } else if (strcmp(param_name, "control_mode") == 0) {
+        if (new_param->value.type == RCLC_PARAMETER_INT) {
+            int val = new_param->value.integer_value;
+            control_mode = (control_mode_t)val;
         }
     }
 

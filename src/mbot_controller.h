@@ -18,24 +18,26 @@ typedef struct {
     pid_params_t body_vel_wz;
 } mbot_pid_config_t;
 
+typedef enum {
+    CONTROL_MODE_FF_ONLY,
+    CONTROL_MODE_PID_ONLY,
+    CONTROL_MODE_FF_PID
+} control_mode_t;
+
 // Parameter server
 int init_parameter_server(rclc_parameter_server_t* parameter_server, rcl_node_t* node);
 bool parameter_callback(const Parameter * old_param, const Parameter * new_param, void * context);
 
-// Init
 int mbot_controller_init(void);
-
-// Motor velocity controller - returns PWM values for left and right motors
 void mbot_motor_vel_controller(float target_left_vel, float target_right_vel, 
                               float current_left_vel, float current_right_vel,
                               float* left_correction, float* right_correction);
-
-// Body velocity controller - returns PWM values for left and right motors
 void mbot_body_vel_controller(float target_vx, float target_wz,
                              float current_vx, float current_wz,
                              float* vx_correction, float* wz_correction);
 
 // PID gains global config
 extern mbot_pid_config_t pid_gains;
+extern control_mode_t control_mode;
 
 #endif

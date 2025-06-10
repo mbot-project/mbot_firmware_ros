@@ -321,19 +321,30 @@ static bool mbot_loop(repeating_timer_t *rt) {
     
                 // PID PWM
                 float left_correction = 0.0f, right_correction = 0.0f;
+                // Apply motor polarity to feedback velocities for consistent PID comparison
+                float vel_left_feedback = local_state.wheel_vel[MOT_L] * params.motor_polarity[MOT_L];
+                float vel_right_feedback = local_state.wheel_vel[MOT_R] * params.motor_polarity[MOT_R];
                 mbot_motor_vel_controller(
                     vel_left_comp, vel_right_comp,
-                    local_state.wheel_vel[MOT_L], local_state.wheel_vel[MOT_R],
-                    &left_correction, &right_correction
+                    vel_left_feedback, vel_right_feedback,
+                    &pid_pwm_left, &pid_pwm_right
                 );
-                pid_pwm_left = calibrated_pwm_from_vel_cmd(left_correction, MOT_L);
-                pid_pwm_right = calibrated_pwm_from_vel_cmd(right_correction, MOT_R);
-                // Feedforward + PID PWM
-                pwm_left = ff_pwm_left + pid_pwm_left;
-                pwm_right = ff_pwm_right + pid_pwm_right;
-
-                break;
+                switch (control_mode) {
+                    case CONTROL_MODE_FF_ONLY:
+                        pwm_left = ff_pwm_left;
+                        pwm_right = ff_pwm_right;
+                        break;
+                    case CONTROL_MODE_PID_ONLY:
+                        pwm_left = pid_pwm_left;
+                        pwm_right = pid_pwm_right;
+                        break;
+                    case CONTROL_MODE_FF_PID:
+                        pwm_left = ff_pwm_left + pid_pwm_left;
+                        pwm_right = ff_pwm_right + pid_pwm_right;
+                        break;
                 }
+                break;
+            }
             case MODE_MBOT_VEL: {
                 // Feedforward PWM
                 float vel_left = (local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
@@ -358,9 +369,20 @@ static bool mbot_loop(repeating_timer_t *rt) {
                 pid_pwm_left = params.motor_polarity[MOT_L] * pid_pwm_left_raw;
                 pid_pwm_right = params.motor_polarity[MOT_R] * pid_pwm_right_raw;
             
-                // Feedforward + PID PWM
-                pwm_left = ff_pwm_left + pid_pwm_left;
-                pwm_right = ff_pwm_right + pid_pwm_right;
+                switch (control_mode) {
+                    case CONTROL_MODE_FF_ONLY:
+                        pwm_left = ff_pwm_left;
+                        pwm_right = ff_pwm_right;
+                        break;
+                    case CONTROL_MODE_PID_ONLY:
+                        pwm_left = pid_pwm_left;
+                        pwm_right = pid_pwm_right;
+                        break;
+                    case CONTROL_MODE_FF_PID:
+                        pwm_left = ff_pwm_left + pid_pwm_left;
+                        pwm_right = ff_pwm_right + pid_pwm_right;
+                        break;
+                }
                 break;
             }
             default:
@@ -473,7 +495,7 @@ int main() {
 
         if (time_us_64() - last_200ms_time > 200000) { // 200ms interval
             last_200ms_time = time_us_64();
-            // mbot_print_state(&mbot_state);
+            mbot_print_state(&mbot_state);
         }
         sleep_ms(10); // Small delay
     }

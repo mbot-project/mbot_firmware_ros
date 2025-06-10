@@ -1,3 +1,12 @@
+"""
+This script is used to drive the robot in a square pattern.
+
+To run the script, use the following command:
+
+python3 drive_square.py
+
+"""
+
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
