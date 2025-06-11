@@ -5,7 +5,6 @@
 #include <math.h>
 #include <rcl/error_handling.h>
 #include <rclc/executor.h>
-#include <rclc_parameter/rclc_parameter.h>
 #include <rmw_microros/rmw_microros.h>
 #include <rmw_microros/time_sync.h>
 #include <pico/stdlib.h>
@@ -29,7 +28,7 @@
 #include "mbot_odometry.h"
 #include "mbot_ros_comms.h"
 #include "mbot_print.h"
-
+#include "mbot_controller.h"
 // comms
 #include <comms/pico_uart_transports.h>
 #include <comms/dual_cdc.h>
@@ -77,8 +76,6 @@ static float calibrated_pwm_from_vel_cmd(float vel_cmd, int motor_idx);
 static void mbot_calculate_motor_vel(void);
 static void mbot_calculate_diff_body_vel(float wheel_left_vel, float wheel_right_vel, float* vx, float* vy, float* wz);
 static void print_mbot_params(const mbot_params_t* params);
-static bool parameter_callback(const Parameter * old_param, const Parameter * new_param, void * context);
-static int init_parameter_server(void);
 
 // Thread-safe helpers for mbot_state and mbot_cmd
 static void get_mbot_state_safe(mbot_state_t* dest);
@@ -120,7 +117,7 @@ int mbot_init_micro_ros(void) {
     if (ret != MBOT_OK) return MBOT_ERROR;
 
     // Initialize parameter server
-    ret = init_parameter_server();
+    ret = init_parameter_server(&parameter_server, &node);
     if (ret != MBOT_OK) return MBOT_ERROR;
 
     ret = rclc_timer_init_default(
@@ -302,27 +299,91 @@ static bool mbot_loop(repeating_timer_t *rt) {
 
     // Get command safely
     mbot_cmd_t local_cmd;
+    mbot_state_t local_state;
     get_mbot_cmd_safe(&local_cmd);
+    get_mbot_state_safe(&local_state);
     bool cmd_fresh = (time_us_64() - local_cmd.timestamp_us) < MBOT_TIMEOUT_US;
     float pwm_left = 0.0f, pwm_right = 0.0f;
-
+    float pid_pwm_left = 0.0f, pid_pwm_right = 0.0f;
     if (cmd_fresh) {
         switch (local_cmd.drive_mode) {
-            case MODE_MOTOR_PWM:
+            case MODE_MOTOR_PWM:{
                 pwm_left = local_cmd.motor_pwm[MOT_L];
                 pwm_right = local_cmd.motor_pwm[MOT_R];
                 break;
-            case MODE_MOTOR_VEL_OL:
-                pwm_left = calibrated_pwm_from_vel_cmd(local_cmd.wheel_vel[MOT_L], MOT_L);
-                pwm_right = calibrated_pwm_from_vel_cmd(local_cmd.wheel_vel[MOT_R], MOT_R);
+                }
+            case MODE_MOTOR_VEL:{
+                // Feedforward PWM
+                float vel_left_comp = local_cmd.wheel_vel[MOT_L] * params.motor_polarity[MOT_L];
+                float vel_right_comp = local_cmd.wheel_vel[MOT_R] * params.motor_polarity[MOT_R];
+                float ff_pwm_left = calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
+                float ff_pwm_right = calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
+    
+                // PID PWM
+                float left_correction = 0.0f, right_correction = 0.0f;
+                // Apply motor polarity to feedback velocities for consistent PID comparison
+                float vel_left_feedback = local_state.wheel_vel[MOT_L] * params.motor_polarity[MOT_L];
+                mbot_motor_vel_controller(
+                    local_cmd.wheel_vel[MOT_L], local_cmd.wheel_vel[MOT_R],
+                    local_state.wheel_vel[MOT_L], local_state.wheel_vel[MOT_R],
+                    &left_correction, &right_correction
+                );
+                pid_pwm_left = left_correction * params.motor_polarity[MOT_L];
+                pid_pwm_right = right_correction * params.motor_polarity[MOT_R];
+                switch (control_mode) {
+                    case CONTROL_MODE_FF_ONLY:
+                        pwm_left = ff_pwm_left;
+                        pwm_right = ff_pwm_right;
+                        break;
+                    case CONTROL_MODE_PID_ONLY:
+                        pwm_left = pid_pwm_left;
+                        pwm_right = pid_pwm_right;
+                        break;
+                    case CONTROL_MODE_FF_PID:
+                        pwm_left = ff_pwm_left + pid_pwm_left;
+                        pwm_right = ff_pwm_right + pid_pwm_right;
+                        break;
+                }
                 break;
+            }
             case MODE_MBOT_VEL: {
+                // Feedforward PWM
                 float vel_left = (local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
                 float vel_right = (-local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
                 float vel_left_comp = params.motor_polarity[MOT_L] * vel_left;
                 float vel_right_comp = params.motor_polarity[MOT_R] * vel_right;
-                pwm_left = calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
-                pwm_right = calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
+                float ff_pwm_left = calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
+                float ff_pwm_right = calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
+                // PID PWM
+                float vx_correction = 0.0f, wz_correction = 0.0f;
+                mbot_body_vel_controller(
+                    local_cmd.vx, local_cmd.wz,
+                    local_state.vx, local_state.wz,
+                    &vx_correction, &wz_correction
+                );
+            
+                // Convert body velocity corrections to wheel PWM corrections
+                float pid_pwm_left_raw = (vx_correction - DIFF_BASE_RADIUS * wz_correction) / DIFF_WHEEL_RADIUS;
+                float pid_pwm_right_raw = (-vx_correction - DIFF_BASE_RADIUS * wz_correction) / DIFF_WHEEL_RADIUS;
+                
+                // Apply motor polarity to PID corrections
+                pid_pwm_left = params.motor_polarity[MOT_L] * pid_pwm_left_raw;
+                pid_pwm_right = params.motor_polarity[MOT_R] * pid_pwm_right_raw;
+            
+                switch (control_mode) {
+                    case CONTROL_MODE_FF_ONLY:
+                        pwm_left = ff_pwm_left;
+                        pwm_right = ff_pwm_right;
+                        break;
+                    case CONTROL_MODE_PID_ONLY:
+                        pwm_left = pid_pwm_left;
+                        pwm_right = pid_pwm_right;
+                        break;
+                    case CONTROL_MODE_FF_PID:
+                        pwm_left = ff_pwm_left + pid_pwm_left;
+                        pwm_right = ff_pwm_right + pid_pwm_right;
+                        break;
+                }
                 break;
             }
             default:
@@ -333,7 +394,6 @@ static bool mbot_loop(repeating_timer_t *rt) {
         pwm_left = 0.0f;
         pwm_right = 0.0f;
     }
-
     // Low-pass filter if enabled
     if (enable_pwm_lpf) {
         pwm_left = rc_filter_march(&mbot_left_pwm_lpf, pwm_left);
@@ -372,7 +432,7 @@ int main() {
     printf("--------------------------------\r\n");
 
     mbot_init_hardware();
-
+    mbot_controller_init();
     mbot_read_fram(0, sizeof(params), (uint8_t*)&params);
 
     printf("\nCalibration Parameters:\n");
@@ -563,42 +623,6 @@ static void print_mbot_params(const mbot_params_t* params) {
     printf("Negative Intercept: %f %f\n", params->itrcpt_neg[MOT_L], params->itrcpt_neg[MOT_R]);
 }
 
-static bool parameter_callback(const Parameter * old_param, const Parameter * new_param, void * context) {
-    if (new_param == NULL) {
-        // Parameter deletion not allowed
-        return false;
-    }
-
-    mbot_state_t local_state;
-    get_mbot_state_safe(&local_state);
-
-    const char* param_name = new_param->name.data;
-    bool param_updated = false;
-
-    if (strcmp(param_name, "kp") == 0) {
-        if (new_param->value.type == RCLC_PARAMETER_DOUBLE) {
-            local_state.kp = new_param->value.double_value;
-            param_updated = true;
-        }
-    } else if (strcmp(param_name, "ki") == 0) {
-        if (new_param->value.type == RCLC_PARAMETER_DOUBLE) {
-            local_state.ki = new_param->value.double_value;
-            param_updated = true;
-        }
-    } else if (strcmp(param_name, "kd") == 0) {
-        if (new_param->value.type == RCLC_PARAMETER_DOUBLE) {
-            local_state.kd = new_param->value.double_value;
-            param_updated = true;
-        }
-    }
-
-    if (param_updated) {
-        set_mbot_state_safe(&local_state);
-        return true;
-    }
-    return false;
-}
-
 static void get_mbot_state_safe(mbot_state_t* dest) {
     ENTER_CRITICAL();
     *dest = mbot_state;
@@ -618,66 +642,4 @@ static void set_mbot_cmd_safe(const mbot_cmd_t* src) {
     ENTER_CRITICAL();
     mbot_cmd = *src;
     EXIT_CRITICAL();
-}
-
-static int init_parameter_server(void) {
-    rcl_ret_t ret;
-    
-    // Initialize parameter server with options for low memory mode
-    rclc_parameter_options_t options = {
-        .notify_changed_over_dds = false,
-        .max_params = 3,  // We only need 3 parameters
-        .allow_undeclared_parameters = false,
-        .low_mem_mode = true
-    };
-    
-    ret = rclc_parameter_server_init_with_option(&parameter_server, &node, &options);
-    if (ret != RCL_RET_OK) {
-        printf("[FATAL] Failed to init parameter server: %d\n", ret);
-        return MBOT_ERROR;
-    }
-
-    // Get current state for initial values
-    mbot_state_t local_state;
-    get_mbot_state_safe(&local_state);
-
-    // Add parameters
-    ret = rclc_add_parameter(&parameter_server, "kp", RCLC_PARAMETER_DOUBLE);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to add kp parameter: %d\n", ret);
-        return MBOT_ERROR;
-    }
-    
-    ret = rclc_add_parameter(&parameter_server, "ki", RCLC_PARAMETER_DOUBLE);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to add ki parameter: %d\n", ret);
-        return MBOT_ERROR;
-    }
-    
-    ret = rclc_add_parameter(&parameter_server, "kd", RCLC_PARAMETER_DOUBLE);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to add kd parameter: %d\n", ret);
-        return MBOT_ERROR;
-    }
-
-    // Set initial values
-    ret = rclc_parameter_set_double(&parameter_server, "kp", local_state.kp);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to set initial kp value: %d\n", ret);
-        return MBOT_ERROR;
-    }
-    
-    ret = rclc_parameter_set_double(&parameter_server, "ki", local_state.ki);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to set initial ki value: %d\n", ret);
-        return MBOT_ERROR;
-    }
-    
-    ret = rclc_parameter_set_double(&parameter_server, "kd", local_state.kd);
-    if (ret != RCL_RET_OK) {
-        printf("[ERROR] Failed to set initial kd value: %d\n", ret);
-        return MBOT_ERROR;
-    }
-
-    return MBOT_OK;
 }

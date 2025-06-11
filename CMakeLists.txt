@@ -47,6 +47,8 @@ add_executable(mbot_classic_ros
     src/mbot_print.h
     src/mbot_ros_comms.c
     src/mbot_ros_comms.h
+    src/mbot_controller.c
+    src/mbot_controller.h
 )
 
 target_link_libraries(mbot_classic_ros
