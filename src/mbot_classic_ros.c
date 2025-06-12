@@ -257,6 +257,8 @@ static void mbot_publish_state(void) {
     }
     
     // Publish encoder data
+    encoders_msg.stamp.sec = now / 1000000000;
+    encoders_msg.stamp.nanosec = now % 1000000000;
     for (int i = 0; i < 3; i++) {
         encoders_msg.ticks[i] = local_state.encoder_ticks[i];
         encoders_msg.delta_ticks[i] = local_state.encoder_delta_ticks[i];

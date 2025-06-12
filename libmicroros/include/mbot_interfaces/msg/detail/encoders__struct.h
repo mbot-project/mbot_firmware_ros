@@ -19,9 +19,15 @@ extern "C"
 
 // Constants defined in the message
 
+// Include directives for member types
+// Member 'stamp'
+#include "builtin_interfaces/msg/detail/time__struct.h"
+
 /// Struct defined in msg/Encoders in the package mbot_interfaces.
 typedef struct mbot_interfaces__msg__Encoders
 {
+  /// ROS time when encoder data was read
+  builtin_interfaces__msg__Time stamp;
   /// no units
   int64_t ticks[3];
   /// no units
