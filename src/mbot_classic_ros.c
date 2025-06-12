@@ -311,8 +311,6 @@ static bool mbot_loop(repeating_timer_t *rt) {
     
                 // PID PWM
                 float left_correction = 0.0f, right_correction = 0.0f;
-                // Apply motor polarity to feedback velocities for consistent PID comparison
-                float vel_left_feedback = local_state.wheel_vel[MOT_L] * params.motor_polarity[MOT_L];
                 mbot_motor_vel_controller(
                     local_cmd.wheel_vel[MOT_L], local_cmd.wheel_vel[MOT_R],
                     local_state.wheel_vel[MOT_L], local_state.wheel_vel[MOT_R],
