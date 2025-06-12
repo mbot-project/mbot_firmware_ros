@@ -175,7 +175,6 @@ int mbot_spin_micro_ros(void) {
 // Publish all robot state to ROS topics
 static void mbot_publish_state(void) {
     rcl_ret_t ret;
-    int64_t now = rmw_uros_epoch_nanos();
     if (!rmw_uros_epoch_synchronized()) {
         printf("[FATAL] Last time synchronization failed\n");
         while(1) { tight_loop_contents(); }
@@ -185,54 +184,18 @@ static void mbot_publish_state(void) {
     mbot_state_t local_state;
     get_mbot_state_safe(&local_state);
     
-    // Publish IMU data
-    imu_msg.header.stamp.sec = now / 1000000000;
-    imu_msg.header.stamp.nanosec = now % 1000000000;
-    imu_msg.angular_velocity.x = local_state.imu_gyro[0];
-    imu_msg.angular_velocity.y = local_state.imu_gyro[1];
-    imu_msg.angular_velocity.z = local_state.imu_gyro[2];
-    imu_msg.linear_acceleration.x = local_state.imu_accel[0];
-    imu_msg.linear_acceleration.y = local_state.imu_accel[1];
-    imu_msg.linear_acceleration.z = local_state.imu_accel[2];
-    imu_msg.orientation.w = local_state.imu_quat[0];
-    imu_msg.orientation.x = local_state.imu_quat[1];
-    imu_msg.orientation.y = local_state.imu_quat[2];
-    imu_msg.orientation.z = local_state.imu_quat[3];
+    // IMU message populated during sensor read
     ret = rcl_publish(&imu_publisher, &imu_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing IMU message: %d\r\n", ret);
     }
     
-    // Publish odometry data
-    odom_msg.header.stamp.sec = now / 1000000000;
-    odom_msg.header.stamp.nanosec = now % 1000000000;
-    odom_msg.pose.pose.position.x = local_state.odom_x;
-    odom_msg.pose.pose.position.y = local_state.odom_y;
-    odom_msg.pose.pose.position.z = 0.0;
-    float cy = cos(local_state.odom_theta * 0.5);
-    float sy = sin(local_state.odom_theta * 0.5);
-    odom_msg.pose.pose.orientation.w = cy;
-    odom_msg.pose.pose.orientation.x = 0.0;
-    odom_msg.pose.pose.orientation.y = 0.0;
-    odom_msg.pose.pose.orientation.z = sy;
-    odom_msg.twist.twist.linear.x = local_state.vx;
-    odom_msg.twist.twist.linear.y = local_state.vy;
-    odom_msg.twist.twist.angular.z = local_state.wz;
+    // Odometry & TF messages have been populated in the control loop
     ret = rcl_publish(&odom_publisher, &odom_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing odometry message: %d\r\n", ret);
     }
     
-    // Publish odom->base_footprint TF as tf2_msgs/msg/TFMessage
-    tf_msg.transforms.data[0].header.stamp.sec = now / 1000000000;
-    tf_msg.transforms.data[0].header.stamp.nanosec = now % 1000000000;
-    tf_msg.transforms.data[0].header.frame_id = odom_msg.header.frame_id;
-    tf_msg.transforms.data[0].child_frame_id = odom_msg.child_frame_id;
-    tf_msg.transforms.data[0].transform.translation.x = odom_msg.pose.pose.position.x;
-    tf_msg.transforms.data[0].transform.translation.y = odom_msg.pose.pose.position.y;
-    tf_msg.transforms.data[0].transform.translation.z = odom_msg.pose.pose.position.z;
-    tf_msg.transforms.data[0].transform.rotation = odom_msg.pose.pose.orientation;
-    tf_msg.transforms.size = 1;
     ret = rcl_publish(&tf_publisher, &tf_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing TF message: %d\r\n", ret);
@@ -256,12 +219,7 @@ static void mbot_publish_state(void) {
         printf("Error publishing motor velocity message: %d\r\n", ret);
     }
     
-    // Publish encoder data
-    for (int i = 0; i < 3; i++) {
-        encoders_msg.ticks[i] = local_state.encoder_ticks[i];
-        encoders_msg.delta_ticks[i] = local_state.encoder_delta_ticks[i];
-    }
-    encoders_msg.delta_time = (int32_t)local_state.encoder_delta_t;
+    // Encoder message populated during encoder read
     ret = rcl_publish(&encoders_publisher, &encoders_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing encoders message: %d\r\n", ret);
@@ -292,8 +250,40 @@ static bool mbot_loop(repeating_timer_t *rt) {
             &mbot_state.odom_y,
             &mbot_state.odom_theta
         );
-        int64_t now = time_us_64();
-        mbot_state.timestamp_us = now;
+        /* Populate odometry and TF ROS messages with the exact timestamp of this calculation */
+        int64_t stamp_ns = rmw_uros_epoch_nanos();
+
+        /* Odometry message */
+        odom_msg.header.stamp.sec     = stamp_ns / 1000000000LL;
+        odom_msg.header.stamp.nanosec = stamp_ns % 1000000000LL;
+        odom_msg.pose.pose.position.x = mbot_state.odom_x;
+        odom_msg.pose.pose.position.y = mbot_state.odom_y;
+        odom_msg.pose.pose.position.z = 0.0f;
+
+        float cy = cosf(mbot_state.odom_theta * 0.5f);
+        float sy = sinf(mbot_state.odom_theta * 0.5f);
+        odom_msg.pose.pose.orientation.w = cy;
+        odom_msg.pose.pose.orientation.x = 0.0f;
+        odom_msg.pose.pose.orientation.y = 0.0f;
+        odom_msg.pose.pose.orientation.z = sy;
+
+        odom_msg.twist.twist.linear.x  = mbot_state.vx;
+        odom_msg.twist.twist.linear.y  = mbot_state.vy;
+        odom_msg.twist.twist.angular.z = mbot_state.wz;
+
+        /* TF message (odom -> base_footprint) */
+        tf_msg.transforms.data[0].header.stamp.sec     = odom_msg.header.stamp.sec;
+        tf_msg.transforms.data[0].header.stamp.nanosec = odom_msg.header.stamp.nanosec;
+        tf_msg.transforms.data[0].header.frame_id      = odom_msg.header.frame_id;
+        tf_msg.transforms.data[0].child_frame_id       = odom_msg.child_frame_id;
+        tf_msg.transforms.data[0].transform.translation.x = odom_msg.pose.pose.position.x;
+        tf_msg.transforms.data[0].transform.translation.y = odom_msg.pose.pose.position.y;
+        tf_msg.transforms.data[0].transform.translation.z = odom_msg.pose.pose.position.z;
+        tf_msg.transforms.data[0].transform.rotation      = odom_msg.pose.pose.orientation;
+        tf_msg.transforms.size = 1;
+
+        /* Local timestamp (for non-ROS diagnostics) */
+        mbot_state.timestamp_us = time_us_64();
         EXIT_CRITICAL();
     }
 
@@ -550,6 +540,24 @@ static void mbot_read_imu(void) {
     for(int i = 0; i < 4; i++) {
         mbot_state.imu_quat[i] = mbot_imu_data.quat[i];
     }
+    /* Populate IMU ROS message with acquisition-time stamp */
+    int64_t stamp_ns = rmw_uros_epoch_nanos();
+
+    imu_msg.header.stamp.sec     = stamp_ns / 1000000000LL;
+    imu_msg.header.stamp.nanosec = stamp_ns % 1000000000LL;
+
+    imu_msg.angular_velocity.x = mbot_state.imu_gyro[0];
+    imu_msg.angular_velocity.y = mbot_state.imu_gyro[1];
+    imu_msg.angular_velocity.z = mbot_state.imu_gyro[2];
+
+    imu_msg.linear_acceleration.x = mbot_state.imu_accel[0];
+    imu_msg.linear_acceleration.y = mbot_state.imu_accel[1];
+    imu_msg.linear_acceleration.z = mbot_state.imu_accel[2];
+
+    imu_msg.orientation.w = mbot_state.imu_quat[0];
+    imu_msg.orientation.x = mbot_state.imu_quat[1];
+    imu_msg.orientation.y = mbot_state.imu_quat[2];
+    imu_msg.orientation.z = mbot_state.imu_quat[3];
 }
 
 static void mbot_read_encoders(void) {
@@ -568,6 +576,17 @@ static void mbot_read_encoders(void) {
     mbot_state.encoder_ticks[MOT_R] = mbot_encoder_read_count(MOT_R);
     mbot_state.encoder_delta_ticks[MOT_L] = mbot_encoder_read_delta(MOT_L);
     mbot_state.encoder_delta_ticks[MOT_R] = mbot_encoder_read_delta(MOT_R);
+
+    int64_t stamp_ns = rmw_uros_epoch_nanos();
+    encoders_msg.stamp.sec     = stamp_ns / 1000000000LL;
+    encoders_msg.stamp.nanosec = stamp_ns % 1000000000LL;
+
+    for (int i = 0; i < 3; i++) {
+        encoders_msg.ticks[i]      = mbot_state.encoder_ticks[i];
+        encoders_msg.delta_ticks[i] = mbot_state.encoder_delta_ticks[i];
+    }
+
+    encoders_msg.delta_time = (int32_t)mbot_state.encoder_delta_t;
 }
 
 static void mbot_read_adc(void) {
