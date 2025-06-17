@@ -118,6 +118,7 @@ lifecycle_msgs/State.msg
 lifecycle_msgs/TransitionDescription.msg
 lifecycle_msgs/TransitionEvent.msg
 lifecycle_msgs/Transition.msg
+mbot_interfaces/BatteryADC.msg
 mbot_interfaces/Encoders.msg
 mbot_interfaces/MotorPWM.msg
 mbot_interfaces/MotorVelocity.msg

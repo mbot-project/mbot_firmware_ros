@@ -13,8 +13,6 @@
 #include "pico/time.h"
 #include <hardware/clocks.h>
 #include <hardware/adc.h>
-#include <geometry_msgs/msg/transform_stamped.h>
-#include <tf2_msgs/msg/tf_message.h>
 
 // mbotlib
 #include <mbot/motor/motor.h>
@@ -29,6 +27,7 @@
 #include "mbot_ros_comms.h"
 #include "mbot_print.h"
 #include "mbot_controller.h"
+
 // comms
 #include <comms/pico_uart_transports.h>
 #include <comms/dual_cdc.h>
@@ -39,6 +38,7 @@
 #ifndef PI
 #define PI 3.14159265358979323846f
 #endif
+const float adc_conversion_factor = 3.0f / (1 << 12);
 
 // Global state variables
 mbot_state_t mbot_state = {0};
@@ -223,6 +223,11 @@ static void mbot_publish_state(void) {
     ret = rcl_publish(&encoders_publisher, &encoders_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing encoders message: %d\r\n", ret);
+    }
+
+    ret = rcl_publish(&battery_publisher, &battery_msg, NULL);
+    if (ret != RCL_RET_OK) {
+        printf("Error publishing battery message: %d\r\n", ret);
     }
 }
 
@@ -588,15 +593,20 @@ static void mbot_read_encoders(void) {
 }
 
 static void mbot_read_adc(void) {
-    const float conversion_factor = 3.0f / (1 << 12);
+    int64_t stamp_ns = rmw_uros_epoch_nanos();
+    battery_msg.stamp.sec     = stamp_ns / 1000000000LL;
+    battery_msg.stamp.nanosec = stamp_ns % 1000000000LL;
     int16_t raw;
     for(int i = 0; i < 4; i++) {
         adc_select_input(i);
         raw = adc_read();
-        mbot_state.analog_in[i] = conversion_factor * raw;
+        battery_msg.raw[i] = raw;
+        mbot_state.analog_in[i] = adc_conversion_factor * raw;
+        battery_msg.volts[i] = adc_conversion_factor * raw;
     }
     // last channel is battery voltage (has 5x divider)
-    mbot_state.analog_in[3] = 5.0f * conversion_factor * raw;
+    mbot_state.analog_in[3] = 5.0f * adc_conversion_factor * raw;
+    battery_msg.volts[3] = 5.0f * adc_conversion_factor * raw;
 }
 
 static float calibrated_pwm_from_vel_cmd(float vel_cmd, int motor_idx) {
