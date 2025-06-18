@@ -3,7 +3,7 @@ Description=MBot micro-ROS Agent
 
 [Service]
 Type=simple
-User=shaw
+User=mbot
 
 ExecStart=/bin/bash -c '\
     source /opt/ros/jazzy/setup.bash && \
