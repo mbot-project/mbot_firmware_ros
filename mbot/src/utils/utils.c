@@ -31,7 +31,7 @@ int _check_i2c0_enabled(){
     return *(volatile uint32_t*)(I2C0_BASE + 0x9C) & 1;
 }
 
-static void _i2c_bus_recover(unsigned int sda_pin, unsigned int scl_pin)
+void _i2c_bus_recover(unsigned int sda_pin, unsigned int scl_pin)
 {
     // Temporarily switch pins to GPIO w/ pull-ups
     gpio_set_function(sda_pin, GPIO_FUNC_SIO);
