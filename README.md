@@ -1,6 +1,28 @@
 # MBot Firmware (ROS2 Jazzy)
 - Hardware: Pico 2040 + Pi5
 - Software: Ubuntu 24 + ROS2 Jazzy + Microros
+
+## How to use
+```bash
+# clone the repository
+cd ~
+gh repo clone mbot-project/mbot_firmware_ros
+cd ~/mbot_firmware_ros
+
+# compile the firmware code
+mkdir build
+cd build
+cmake ..
+make
+```
+Then flash the firmware to the pico board:
+```bash
+cd ~/mbot_firmware_ros/build
+# calibration - wait until the robot stops moving
+sudo mbot-upload-firmware flash mbot_calibrate_classic.uf2
+# main firmware
+sudo mbot-upload-firmware flash mbot_classic_ros.uf2
+```
 ## Project Components
 1. `libmicroros`: This directory contains the precompiled micro-ROS static library (`libmicroros.a`) and all necessary header files for the Raspberry Pi Pico. This library includes:
     - ROS 2 client library core functionality
