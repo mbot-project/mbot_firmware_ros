@@ -425,8 +425,10 @@ int main() {
     printf("--------------------------------\r\n");
 
     mbot_init_hardware();
-    mbot_controller_init();
+
     mbot_read_fram(0, sizeof(params), (uint8_t*)&params);
+    mbot_read_pid_gains(&params);
+    mbot_controller_init();
 
     printf("\nCalibration Parameters:\n");
     print_mbot_params(&params);
@@ -648,6 +650,18 @@ static void print_mbot_params(const mbot_params_t* params) {
     printf("Positive Intercept: %f %f\n", params->itrcpt_pos[MOT_L], params->itrcpt_pos[MOT_R]);
     printf("Negative Slope: %f %f\n", params->slope_neg[MOT_L], params->slope_neg[MOT_R]);
     printf("Negative Intercept: %f %f\n", params->itrcpt_neg[MOT_L], params->itrcpt_neg[MOT_R]);
+    printf("\nPID Gains (kp, ki, kd, tf):\n");
+    printf("  Body Vx : %f %f %f %f\n", params->body_vel_vx_pid[0], params->body_vel_vx_pid[1], params->body_vel_vx_pid[2], params->body_vel_vx_pid[3]);
+    printf("  Body Wz : %f %f %f %f\n", params->body_vel_wz_pid[0], params->body_vel_wz_pid[1], params->body_vel_wz_pid[2], params->body_vel_wz_pid[3]);
+    printf("  Wheel L : %f %f %f %f\n", params->left_wheel_vel_pid[0], params->left_wheel_vel_pid[1], params->left_wheel_vel_pid[2], params->left_wheel_vel_pid[3]);
+    printf("  Wheel R : %f %f %f %f\n", params->right_wheel_vel_pid[0], params->right_wheel_vel_pid[1], params->right_wheel_vel_pid[2], params->right_wheel_vel_pid[3]);
+
+    const char* mode_str = "UNKNOWN";
+    if(params->control_mode == 0) mode_str = "Feedforward Only";
+    else if(params->control_mode == 1) mode_str = "PID Only";
+    else if(params->control_mode == 2) mode_str = "FF + PID";
+
+    printf("\nControl Mode: %d (%s)\n", params->control_mode, mode_str);
 }
 
 static void get_mbot_state_safe(mbot_state_t* dest) {

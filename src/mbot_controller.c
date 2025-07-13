@@ -3,6 +3,7 @@
 #include <rclc/rclc.h>
 #include <mbot/defs/mbot_params.h>
 #include "config/mbot_classic_config.h"
+#include "config/mbot_classic_default_pid.h"
 #include <rc/math/filter.h>
 #include <stdio.h>
 #include <string.h>
@@ -10,15 +11,34 @@
 #define DEFAULT_TF (MAIN_LOOP_PERIOD)  // Tf must be > dt/2 for stability
 
 // Global PID controller variables
-mbot_pid_config_t pid_gains = {
-    .left_wheel = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
-    .right_wheel = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
-    .body_vel_vx = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
-    .body_vel_wz = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
-};
-control_mode_t control_mode = CONTROL_MODE_FF_ONLY;
+mbot_pid_config_t pid_gains = MBOT_DEFAULT_PID_GAINS;
+control_mode_t control_mode = (control_mode_t)MBOT_DEFAULT_CONTROL_MODE;
 
 static bool pid_updated = false;
+
+void mbot_read_pid_gains(const mbot_params_t* params) {
+    pid_gains.body_vel_vx.kp = params->body_vel_vx_pid[0];
+    pid_gains.body_vel_vx.ki = params->body_vel_vx_pid[1];
+    pid_gains.body_vel_vx.kd = params->body_vel_vx_pid[2];
+    pid_gains.body_vel_vx.tf = params->body_vel_vx_pid[3];
+
+    pid_gains.body_vel_wz.kp = params->body_vel_wz_pid[0];
+    pid_gains.body_vel_wz.ki = params->body_vel_wz_pid[1];
+    pid_gains.body_vel_wz.kd = params->body_vel_wz_pid[2];
+    pid_gains.body_vel_wz.tf = params->body_vel_wz_pid[3];
+
+    pid_gains.left_wheel.kp  = params->left_wheel_vel_pid[0];
+    pid_gains.left_wheel.ki  = params->left_wheel_vel_pid[1];
+    pid_gains.left_wheel.kd  = params->left_wheel_vel_pid[2];
+    pid_gains.left_wheel.tf  = params->left_wheel_vel_pid[3];
+
+    pid_gains.right_wheel.kp = params->right_wheel_vel_pid[0];
+    pid_gains.right_wheel.ki = params->right_wheel_vel_pid[1];
+    pid_gains.right_wheel.kd = params->right_wheel_vel_pid[2];
+    pid_gains.right_wheel.tf = params->right_wheel_vel_pid[3];
+
+    control_mode = (control_mode_t)params->control_mode;
+}
 
 // PID filters
 rc_filter_t left_wheel_pid;

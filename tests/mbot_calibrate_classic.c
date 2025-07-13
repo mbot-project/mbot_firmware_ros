@@ -10,6 +10,7 @@
 #include <mbot/defs/mbot_params.h>
 
 #include "config/mbot_classic_config.h"
+#include "config/mbot_classic_default_pid.h"
 
 mbot_bhy_data_t mbot_imu_data;
 mbot_bhy_config_t mbot_imu_config;
@@ -73,6 +74,19 @@ void print_mbot_params_dd(const mbot_params_t* params) {
 
     printf("Negative Slope: %f %f\n", params->slope_neg[MOT_L], params->slope_neg[MOT_R]);
     printf("Negative Intercept: %f %f\n", params->itrcpt_neg[MOT_L], params->itrcpt_neg[MOT_R]);
+
+    printf("\nPID Gains (kp, ki, kd, tf):\n");
+    printf("  Body Vx : %f %f %f %f\n", params->body_vel_vx_pid[0], params->body_vel_vx_pid[1], params->body_vel_vx_pid[2], params->body_vel_vx_pid[3]);
+    printf("  Body Wz : %f %f %f %f\n", params->body_vel_wz_pid[0], params->body_vel_wz_pid[1], params->body_vel_wz_pid[2], params->body_vel_wz_pid[3]);
+    printf("  Wheel L : %f %f %f %f\n", params->left_wheel_vel_pid[0], params->left_wheel_vel_pid[1], params->left_wheel_vel_pid[2], params->left_wheel_vel_pid[3]);
+    printf("  Wheel R : %f %f %f %f\n", params->right_wheel_vel_pid[0], params->right_wheel_vel_pid[1], params->right_wheel_vel_pid[2], params->right_wheel_vel_pid[3]);
+
+    const char* mode_str = "UNKNOWN";
+    if(params->control_mode == 0) mode_str = "Feedforward Only";
+    else if(params->control_mode == 1) mode_str = "PID Only";
+    else if(params->control_mode == 2) mode_str = "FF + PID";
+
+    printf("\nControl Mode: %d (%s)\n", params->control_mode, mode_str);
 }
 
 int main() {
@@ -319,7 +333,30 @@ int main() {
     printf("m_ln: %f\n", m_ln);
     printf("b_ln: %f\n", b_ln);
 
-    
+    // Store default PID gains into params struct
+    printf("Storing default PID gains into params struct...\n");
+    params.body_vel_vx_pid[0] = MBOT_DEFAULT_PID_GAINS.body_vel_vx.kp;
+    params.body_vel_vx_pid[1] = MBOT_DEFAULT_PID_GAINS.body_vel_vx.ki;
+    params.body_vel_vx_pid[2] = MBOT_DEFAULT_PID_GAINS.body_vel_vx.kd;
+    params.body_vel_vx_pid[3] = MBOT_DEFAULT_PID_GAINS.body_vel_vx.tf;
+
+    params.body_vel_wz_pid[0] = MBOT_DEFAULT_PID_GAINS.body_vel_wz.kp;
+    params.body_vel_wz_pid[1] = MBOT_DEFAULT_PID_GAINS.body_vel_wz.ki;
+    params.body_vel_wz_pid[2] = MBOT_DEFAULT_PID_GAINS.body_vel_wz.kd;
+    params.body_vel_wz_pid[3] = MBOT_DEFAULT_PID_GAINS.body_vel_wz.tf;
+
+    params.left_wheel_vel_pid[0] = MBOT_DEFAULT_PID_GAINS.left_wheel.kp;
+    params.left_wheel_vel_pid[1] = MBOT_DEFAULT_PID_GAINS.left_wheel.ki;
+    params.left_wheel_vel_pid[2] = MBOT_DEFAULT_PID_GAINS.left_wheel.kd;
+    params.left_wheel_vel_pid[3] = MBOT_DEFAULT_PID_GAINS.left_wheel.tf;
+
+    params.right_wheel_vel_pid[0] = MBOT_DEFAULT_PID_GAINS.right_wheel.kp;
+    params.right_wheel_vel_pid[1] = MBOT_DEFAULT_PID_GAINS.right_wheel.ki;
+    params.right_wheel_vel_pid[2] = MBOT_DEFAULT_PID_GAINS.right_wheel.kd;
+    params.right_wheel_vel_pid[3] = MBOT_DEFAULT_PID_GAINS.right_wheel.tf;
+
+    params.control_mode = MBOT_DEFAULT_CONTROL_MODE;
+
     mbot_write_fram(0, sizeof(params), &params);
     mbot_params_t written;
     mbot_read_fram(0, sizeof(written), &written);
