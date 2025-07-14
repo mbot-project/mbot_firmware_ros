@@ -87,6 +87,18 @@ int mbot_controller_init(void) {
     rc_filter_enable_saturation(&right_wheel_pid, -1.0, 1.0);
     rc_filter_enable_saturation(&body_vel_vx_pid, -1.0, 1.0);
     rc_filter_enable_saturation(&body_vel_wz_pid, -1.0, 1.0);
+    
+    // Print configured PID gains for runtime verification
+    // printf("[MBot] PID Gains Initialized:\n");
+    // printf("  Left Wheel  -> kp: %.3f, ki: %.3f, kd: %.3f, tf: %.3f\n", 
+    //        pid_gains.left_wheel.kp, pid_gains.left_wheel.ki, pid_gains.left_wheel.kd, pid_gains.left_wheel.tf);
+    // printf("  Right Wheel -> kp: %.3f, ki: %.3f, kd: %.3f, tf: %.3f\n", 
+    //        pid_gains.right_wheel.kp, pid_gains.right_wheel.ki, pid_gains.right_wheel.kd, pid_gains.right_wheel.tf);
+    // printf("  Body Vel VX -> kp: %.3f, ki: %.3f, kd: %.3f, tf: %.3f\n", 
+    //        pid_gains.body_vel_vx.kp, pid_gains.body_vel_vx.ki, pid_gains.body_vel_vx.kd, pid_gains.body_vel_vx.tf);
+    // printf("  Body Vel WZ -> kp: %.3f, ki: %.3f, kd: %.3f, tf: %.3f\n", 
+    //        pid_gains.body_vel_wz.kp, pid_gains.body_vel_wz.ki, pid_gains.body_vel_wz.kd, pid_gains.body_vel_wz.tf);
+    // printf("  Control Mode: %d\n", control_mode);
     return MBOT_OK;
 }
 

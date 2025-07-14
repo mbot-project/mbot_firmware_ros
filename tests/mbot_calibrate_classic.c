@@ -334,7 +334,6 @@ int main() {
     printf("b_ln: %f\n", b_ln);
 
     // Store default PID gains into params struct
-    printf("Storing default PID gains into params struct...\n");
     params.body_vel_vx_pid[0] = MBOT_DEFAULT_PID_GAINS.body_vel_vx.kp;
     params.body_vel_vx_pid[1] = MBOT_DEFAULT_PID_GAINS.body_vel_vx.ki;
     params.body_vel_vx_pid[2] = MBOT_DEFAULT_PID_GAINS.body_vel_vx.kd;

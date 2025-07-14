@@ -11,6 +11,6 @@ static const mbot_pid_config_t MBOT_DEFAULT_PID_GAINS = {
     .body_vel_wz = { .kp = 0.10f, .ki = 0.00f, .kd = 0.00f, .tf = 0.10f },
 };
 
-static const int MBOT_DEFAULT_CONTROL_MODE = 2; // FF+PID
+static const int MBOT_DEFAULT_CONTROL_MODE = 2; // # 0=FF only, 1=PID only, 2=FF+PID
 
 #endif /* CONFIG_MBOT_CLASSIC_DEFAULT_PID_H */ 
