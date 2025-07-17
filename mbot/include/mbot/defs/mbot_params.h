@@ -10,9 +10,9 @@
 
 #define SYS_CLOCK       125000 //system clock in kHz
 #define PWM_FREQ        10000
-#define MAIN_LOOP_HZ            25.0 // Hz of control loop
+#define MAIN_LOOP_HZ            110.0 // Hz of control loop
 #define MAIN_LOOP_PERIOD        (1.0f / MAIN_LOOP_HZ)
-#define ROS_TIMER_HZ            20.0 // Hz of ROS timer
+#define ROS_TIMER_HZ            100.0 // Hz of ROS timer
 #define ROS_TIMER_PERIOD        (1.0f / ROS_TIMER_HZ)
 
 #define DIFFERENTIAL_DRIVE 1

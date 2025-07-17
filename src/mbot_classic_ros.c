@@ -163,7 +163,7 @@ int mbot_init_micro_ros(void) {
 
 // Handle incoming ROS messages
 int mbot_spin_micro_ros(void) {
-    rcl_ret_t ret = rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
+    rcl_ret_t ret = rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1));
     if (ret != RCL_RET_OK && ret != RCL_RET_TIMEOUT) {
         printf("microROS spin error: %d\r\n", ret);
         return MBOT_ERROR;
@@ -200,16 +200,7 @@ static void mbot_publish_state(void) {
     if (ret != RCL_RET_OK) {
         printf("Error publishing TF message: %d\r\n", ret);
     }
-    
-    // Publish Mbot velocity data
-    mbot_vel_msg.linear.x = local_state.vx;
-    mbot_vel_msg.linear.y = local_state.vy;
-    mbot_vel_msg.angular.z = local_state.wz;
-    ret = rcl_publish(&mbot_vel_publisher, &mbot_vel_msg, NULL);
-    if (ret != RCL_RET_OK) {
-        printf("Error publishing mbot_vel message: %d\r\n", ret);
-    }
-    
+
     // Publish motor velocities
     motor_vel_msg.velocity[MOT_L] = local_state.wheel_vel[MOT_L];
     motor_vel_msg.velocity[MOT_R] = local_state.wheel_vel[MOT_R];
@@ -493,7 +484,7 @@ int main() {
             last_200ms_time = time_us_64();
             mbot_print_state(&mbot_state);
         }
-        sleep_ms(10); // Small delay
+        sleep_us(500); 
     }
     return 0;
 }
