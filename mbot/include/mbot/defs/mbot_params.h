@@ -19,6 +19,11 @@
 #define OMNI_120_DRIVE 2 // 3 omni wheels spaced 120deg
 #define ACKERMAN_DRIVE 3
 
+#define PUB_DIV_ENCODERS  2   // 100/2 = 50 Hz
+#define PUB_DIV_ODOM      4   // 100/4 = 25 Hz
+#define PUB_DIV_BATTERY   4
+#define PUB_DIV_TF        4 
+
 typedef struct mbot_params_t{
     int motor_polarity[3];
     int encoder_polarity[3];

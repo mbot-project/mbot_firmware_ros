@@ -60,6 +60,7 @@ static rclc_parameter_server_t parameter_server;
 // Timer for periodic publishing
 static rcl_timer_t ros_publish_timer;
 static repeating_timer_t mbot_loop_timer;
+static uint8_t pub_tick = 0;  // rolls 0-3, to control publishing rate
 
 int mbot_init_micro_ros(void);
 int mbot_spin_micro_ros(void);
@@ -180,25 +181,18 @@ static void mbot_publish_state(void) {
         while(1) { tight_loop_contents(); }
     }
 
-    // Get state safely
+    /* Increment the publish tick counter (0..PUB_DIV_ODOM-1) */
+    pub_tick = (pub_tick + 1) % PUB_DIV_ODOM;
+
+    /* Take a snapshot of the state for thread-safety */
     mbot_state_t local_state;
     get_mbot_state_safe(&local_state);
-    
-    // IMU message populated during sensor read
+
+    /* ---------------- 100 Hz topics ---------------- */
+    // IMU (already populated during sensor read)
     ret = rcl_publish(&imu_publisher, &imu_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing IMU message: %d\r\n", ret);
-    }
-    
-    // Odometry & TF messages have been populated in the control loop
-    ret = rcl_publish(&odom_publisher, &odom_msg, NULL);
-    if (ret != RCL_RET_OK) {
-        printf("Error publishing odometry message: %d\r\n", ret);
-    }
-    
-    ret = rcl_publish(&tf_publisher, &tf_msg, NULL);
-    if (ret != RCL_RET_OK) {
-        printf("Error publishing TF message: %d\r\n", ret);
     }
 
     // Publish motor velocities
@@ -209,16 +203,36 @@ static void mbot_publish_state(void) {
     if (ret != RCL_RET_OK) {
         printf("Error publishing motor velocity message: %d\r\n", ret);
     }
-    
-    // Encoder message populated during encoder read
-    ret = rcl_publish(&encoders_publisher, &encoders_msg, NULL);
-    if (ret != RCL_RET_OK) {
-        printf("Error publishing encoders message: %d\r\n", ret);
+
+    /* ---------------- 50 Hz topics ---------------- */
+    if (pub_tick % PUB_DIV_ENCODERS == 0) {
+        // Encoder message already populated in mbot_read_encoders()
+        ret = rcl_publish(&encoders_publisher, &encoders_msg, NULL);
+        if (ret != RCL_RET_OK) {
+            printf("Error publishing encoders message: %d\r\n", ret);
+        }
     }
 
-    ret = rcl_publish(&battery_publisher, &battery_msg, NULL);
-    if (ret != RCL_RET_OK) {
-        printf("Error publishing battery message: %d\r\n", ret);
+    /* ---------------- 25 Hz topics ---------------- */
+    if (pub_tick % PUB_DIV_BATTERY == 0) {
+        // Battery ADC message already populated in mbot_read_adc()
+        ret = rcl_publish(&battery_publisher, &battery_msg, NULL);
+        if (ret != RCL_RET_OK) {
+            printf("Error publishing battery message: %d\r\n", ret);
+        }
+    }
+
+    if (pub_tick == 0) {  // Every PUB_DIV_ODOM ticks
+        // Odometry & TF populated in control loop
+        ret = rcl_publish(&odom_publisher, &odom_msg, NULL);
+        if (ret != RCL_RET_OK) {
+            printf("Error publishing odometry message: %d\r\n", ret);
+        }
+
+        ret = rcl_publish(&tf_publisher, &tf_msg, NULL);
+        if (ret != RCL_RET_OK) {
+            printf("Error publishing TF message: %d\r\n", ret);
+        }
     }
 }
 
