@@ -77,6 +77,7 @@ static float calibrated_pwm_from_vel_cmd(float vel_cmd, int motor_idx);
 static void mbot_calculate_motor_vel(void);
 static void mbot_calculate_diff_body_vel(float wheel_left_vel, float wheel_right_vel, float* vx, float* vy, float* wz);
 static void print_mbot_params(const mbot_params_t* params);
+static void core1_usb_task(void);
 
 // Thread-safe helpers for mbot_state and mbot_cmd
 static void get_mbot_state_safe(mbot_state_t* dest);
@@ -164,7 +165,7 @@ int mbot_init_micro_ros(void) {
 
 // Handle incoming ROS messages
 int mbot_spin_micro_ros(void) {
-    rcl_ret_t ret = rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1));
+    rcl_ret_t ret = rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
     if (ret != RCL_RET_OK && ret != RCL_RET_TIMEOUT) {
         printf("microROS spin error: %d\r\n", ret);
         return MBOT_ERROR;
@@ -424,6 +425,8 @@ int main() {
     // Initialize Dual CDC and stdio
     stdio_init_all();
     dual_cdc_init();
+    // Launch USB-servicing loop on core 1 
+    multicore_launch_core1(core1_usb_task);
     mbot_wait_ms(2000);
     
     printf("\r\nMBot Classic Firmware (ROS2)\r\n");
@@ -487,8 +490,6 @@ int main() {
     // Main loop: if a fatal error occurs, halt and wait for reset
     static int64_t last_200ms_time = 0;
     while (1) {
-        dual_cdc_task(); // Keep USB alive
-
         if (mbot_spin_micro_ros() != MBOT_OK) {
             printf("[FATAL] Micro-ROS spin failed. Please check agent connection and press the reset button.\n");
             while(1) { tight_loop_contents(); }
@@ -688,4 +689,12 @@ static void set_mbot_cmd_safe(const mbot_cmd_t* src) {
     ENTER_CRITICAL();
     mbot_cmd = *src;
     EXIT_CRITICAL();
+}
+
+static void core1_usb_task(void) {
+    /* Runs on core 1: keep TinyUSB CDC endpoints serviced */
+    while (true) {
+        dual_cdc_task();
+        sleep_us(100); /* slight yield to other IRQs */
+    }
 }
