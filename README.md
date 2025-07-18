@@ -53,6 +53,16 @@ sudo mbot-upload-firmware flash mbot_classic_ros.uf2
 - `mbot_odometry.c/.h`: Odometry calculation utilities.
 - `mbot_print.c/.h`: Debug printing utilities.
 
+### Publishers
+| Topic        | Pub Rate | QoS         |
+| -------------- | ---------- | :------------ |
+| /battery_adc | 25 HZ    | Best Effort |
+| /encoders    | 50 HZ    | Best Effort |
+| /imu         | 100 HZ   | Best Effort |
+| /motor_vel   | 100 HZ   | Best Effort |
+| /odom        | 25 HZ    | Reliable    |
+| /tf          | 25 HZ    | Best Effort |
+
 ### MBot State
 - Using local state variables for robot state (`mbot_state_t`, `mbot_cmd_t`)
 - Synchronizing state between hardware readings and ROS messages (hardware readings update `mbot_state`, ROS messages are populated from `mbot_state`, `mbot_cmd` updated by ROS callbacks).

@@ -60,6 +60,7 @@ static rclc_parameter_server_t parameter_server;
 // Timer for periodic publishing
 static rcl_timer_t ros_publish_timer;
 static repeating_timer_t mbot_loop_timer;
+static uint8_t pub_tick = 0;  // rolls 0-3, to control publishing rate
 
 int mbot_init_micro_ros(void);
 int mbot_spin_micro_ros(void);
@@ -76,6 +77,7 @@ static float calibrated_pwm_from_vel_cmd(float vel_cmd, int motor_idx);
 static void mbot_calculate_motor_vel(void);
 static void mbot_calculate_diff_body_vel(float wheel_left_vel, float wheel_right_vel, float* vx, float* vy, float* wz);
 static void print_mbot_params(const mbot_params_t* params);
+static void core1_usb_task(void);
 
 // Thread-safe helpers for mbot_state and mbot_cmd
 static void get_mbot_state_safe(mbot_state_t* dest);
@@ -180,36 +182,20 @@ static void mbot_publish_state(void) {
         while(1) { tight_loop_contents(); }
     }
 
-    // Get state safely
+    /* Increment the publish tick counter (0..PUB_DIV_ODOM-1) */
+    pub_tick = (pub_tick + 1) % PUB_DIV_ODOM;
+
+    /* Take a snapshot of the state for thread-safety */
     mbot_state_t local_state;
     get_mbot_state_safe(&local_state);
-    
-    // IMU message populated during sensor read
+
+    /* ---------------- 100 Hz topics ---------------- */
+    // IMU (already populated during sensor read)
     ret = rcl_publish(&imu_publisher, &imu_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing IMU message: %d\r\n", ret);
     }
-    
-    // Odometry & TF messages have been populated in the control loop
-    ret = rcl_publish(&odom_publisher, &odom_msg, NULL);
-    if (ret != RCL_RET_OK) {
-        printf("Error publishing odometry message: %d\r\n", ret);
-    }
-    
-    ret = rcl_publish(&tf_publisher, &tf_msg, NULL);
-    if (ret != RCL_RET_OK) {
-        printf("Error publishing TF message: %d\r\n", ret);
-    }
-    
-    // Publish Mbot velocity data
-    mbot_vel_msg.linear.x = local_state.vx;
-    mbot_vel_msg.linear.y = local_state.vy;
-    mbot_vel_msg.angular.z = local_state.wz;
-    ret = rcl_publish(&mbot_vel_publisher, &mbot_vel_msg, NULL);
-    if (ret != RCL_RET_OK) {
-        printf("Error publishing mbot_vel message: %d\r\n", ret);
-    }
-    
+
     // Publish motor velocities
     motor_vel_msg.velocity[MOT_L] = local_state.wheel_vel[MOT_L];
     motor_vel_msg.velocity[MOT_R] = local_state.wheel_vel[MOT_R];
@@ -218,16 +204,36 @@ static void mbot_publish_state(void) {
     if (ret != RCL_RET_OK) {
         printf("Error publishing motor velocity message: %d\r\n", ret);
     }
-    
-    // Encoder message populated during encoder read
-    ret = rcl_publish(&encoders_publisher, &encoders_msg, NULL);
-    if (ret != RCL_RET_OK) {
-        printf("Error publishing encoders message: %d\r\n", ret);
+
+    /* ---------------- 50 Hz topics ---------------- */
+    if (pub_tick % PUB_DIV_ENCODERS == 0) {
+        // Encoder message already populated in mbot_read_encoders()
+        ret = rcl_publish(&encoders_publisher, &encoders_msg, NULL);
+        if (ret != RCL_RET_OK) {
+            printf("Error publishing encoders message: %d\r\n", ret);
+        }
     }
 
-    ret = rcl_publish(&battery_publisher, &battery_msg, NULL);
-    if (ret != RCL_RET_OK) {
-        printf("Error publishing battery message: %d\r\n", ret);
+    /* ---------------- 25 Hz topics ---------------- */
+    if (pub_tick % PUB_DIV_BATTERY == 0) {
+        // Battery ADC message already populated in mbot_read_adc()
+        ret = rcl_publish(&battery_publisher, &battery_msg, NULL);
+        if (ret != RCL_RET_OK) {
+            printf("Error publishing battery message: %d\r\n", ret);
+        }
+    }
+
+    if (pub_tick == 0) {  // Every PUB_DIV_ODOM ticks
+        // Odometry & TF populated in control loop
+        ret = rcl_publish(&odom_publisher, &odom_msg, NULL);
+        if (ret != RCL_RET_OK) {
+            printf("Error publishing odometry message: %d\r\n", ret);
+        }
+
+        ret = rcl_publish(&tf_publisher, &tf_msg, NULL);
+        if (ret != RCL_RET_OK) {
+            printf("Error publishing TF message: %d\r\n", ret);
+        }
     }
 }
 
@@ -419,6 +425,8 @@ int main() {
     // Initialize Dual CDC and stdio
     stdio_init_all();
     dual_cdc_init();
+    // Launch USB-servicing loop on core 1 
+    multicore_launch_core1(core1_usb_task);
     mbot_wait_ms(2000);
     
     printf("\r\nMBot Classic Firmware (ROS2)\r\n");
@@ -482,8 +490,6 @@ int main() {
     // Main loop: if a fatal error occurs, halt and wait for reset
     static int64_t last_200ms_time = 0;
     while (1) {
-        dual_cdc_task(); // Keep USB alive
-
         if (mbot_spin_micro_ros() != MBOT_OK) {
             printf("[FATAL] Micro-ROS spin failed. Please check agent connection and press the reset button.\n");
             while(1) { tight_loop_contents(); }
@@ -493,7 +499,7 @@ int main() {
             last_200ms_time = time_us_64();
             mbot_print_state(&mbot_state);
         }
-        sleep_ms(10); // Small delay
+        sleep_us(500); 
     }
     return 0;
 }
@@ -683,4 +689,12 @@ static void set_mbot_cmd_safe(const mbot_cmd_t* src) {
     ENTER_CRITICAL();
     mbot_cmd = *src;
     EXIT_CRITICAL();
+}
+
+static void core1_usb_task(void) {
+    /* Runs on core 1: keep TinyUSB CDC endpoints serviced */
+    while (true) {
+        dual_cdc_task();
+        sleep_us(100); /* slight yield to other IRQs */
+    }
 }
