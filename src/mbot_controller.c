@@ -3,22 +3,45 @@
 #include <rclc/rclc.h>
 #include <mbot/defs/mbot_params.h>
 #include "config/mbot_classic_config.h"
+#include "config/mbot_classic_default_pid.h"
 #include <rc/math/filter.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
+#include <mbot/fram/fram.h>
 
-#define DEFAULT_TF (MAIN_LOOP_PERIOD)  // Tf must be > dt/2 for stability
+// Access to global params struct defined in mbot_classic_ros.c
+extern mbot_params_t params;
 
 // Global PID controller variables
-mbot_pid_config_t pid_gains = {
-    .left_wheel = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
-    .right_wheel = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
-    .body_vel_vx = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
-    .body_vel_wz = { .kp = 0.0, .ki = 0.0, .kd = 0.0, .tf = DEFAULT_TF },
-};
-control_mode_t control_mode = CONTROL_MODE_FF_ONLY;
+mbot_pid_config_t pid_gains = MBOT_DEFAULT_PID_GAINS;
+control_mode_t control_mode = (control_mode_t)MBOT_DEFAULT_CONTROL_MODE;
 
 static bool pid_updated = false;
+
+void mbot_read_pid_gains(const mbot_params_t* params) {
+    pid_gains.body_vel_vx.kp = params->body_vel_vx_pid[0];
+    pid_gains.body_vel_vx.ki = params->body_vel_vx_pid[1];
+    pid_gains.body_vel_vx.kd = params->body_vel_vx_pid[2];
+    pid_gains.body_vel_vx.tf = params->body_vel_vx_pid[3];
+
+    pid_gains.body_vel_wz.kp = params->body_vel_wz_pid[0];
+    pid_gains.body_vel_wz.ki = params->body_vel_wz_pid[1];
+    pid_gains.body_vel_wz.kd = params->body_vel_wz_pid[2];
+    pid_gains.body_vel_wz.tf = params->body_vel_wz_pid[3];
+
+    pid_gains.left_wheel.kp  = params->left_wheel_vel_pid[0];
+    pid_gains.left_wheel.ki  = params->left_wheel_vel_pid[1];
+    pid_gains.left_wheel.kd  = params->left_wheel_vel_pid[2];
+    pid_gains.left_wheel.tf  = params->left_wheel_vel_pid[3];
+
+    pid_gains.right_wheel.kp = params->right_wheel_vel_pid[0];
+    pid_gains.right_wheel.ki = params->right_wheel_vel_pid[1];
+    pid_gains.right_wheel.kd = params->right_wheel_vel_pid[2];
+    pid_gains.right_wheel.tf = params->right_wheel_vel_pid[3];
+
+    control_mode = (control_mode_t)params->control_mode;
+}
 
 // PID filters
 rc_filter_t left_wheel_pid;
@@ -67,6 +90,18 @@ int mbot_controller_init(void) {
     rc_filter_enable_saturation(&right_wheel_pid, -1.0, 1.0);
     rc_filter_enable_saturation(&body_vel_vx_pid, -1.0, 1.0);
     rc_filter_enable_saturation(&body_vel_wz_pid, -1.0, 1.0);
+    
+    // Print configured PID gains for runtime verification
+    // printf("[MBot] PID Gains Initialized:\n");
+    // printf("  Left Wheel  -> kp: %.3f, ki: %.3f, kd: %.3f, tf: %.3f\n", 
+    //        pid_gains.left_wheel.kp, pid_gains.left_wheel.ki, pid_gains.left_wheel.kd, pid_gains.left_wheel.tf);
+    // printf("  Right Wheel -> kp: %.3f, ki: %.3f, kd: %.3f, tf: %.3f\n", 
+    //        pid_gains.right_wheel.kp, pid_gains.right_wheel.ki, pid_gains.right_wheel.kd, pid_gains.right_wheel.tf);
+    // printf("  Body Vel VX -> kp: %.3f, ki: %.3f, kd: %.3f, tf: %.3f\n", 
+    //        pid_gains.body_vel_vx.kp, pid_gains.body_vel_vx.ki, pid_gains.body_vel_vx.kd, pid_gains.body_vel_vx.tf);
+    // printf("  Body Vel WZ -> kp: %.3f, ki: %.3f, kd: %.3f, tf: %.3f\n", 
+    //        pid_gains.body_vel_wz.kp, pid_gains.body_vel_wz.ki, pid_gains.body_vel_wz.kd, pid_gains.body_vel_wz.tf);
+    // printf("  Control Mode: %d\n", control_mode);
     return MBOT_OK;
 }
 
@@ -333,8 +368,40 @@ bool parameter_callback(const Parameter * old_param, const Parameter * new_param
         if (new_param->value.type == RCLC_PARAMETER_INT) {
             int val = new_param->value.integer_value;
             control_mode = (control_mode_t)val;
+            pid_updated = true;
         }
     }
 
+    if (pid_updated) {
+        mbot_save_params_to_fram();
+    }
     return pid_updated;
+}
+
+// Save current PID gains and control mode to FRAM
+int mbot_save_params_to_fram(void) {
+    params.left_wheel_vel_pid[0]  = pid_gains.left_wheel.kp;
+    params.left_wheel_vel_pid[1]  = pid_gains.left_wheel.ki;
+    params.left_wheel_vel_pid[2]  = pid_gains.left_wheel.kd;
+    params.left_wheel_vel_pid[3]  = pid_gains.left_wheel.tf;
+
+    params.right_wheel_vel_pid[0] = pid_gains.right_wheel.kp;
+    params.right_wheel_vel_pid[1] = pid_gains.right_wheel.ki;
+    params.right_wheel_vel_pid[2] = pid_gains.right_wheel.kd;
+    params.right_wheel_vel_pid[3] = pid_gains.right_wheel.tf;
+
+    params.body_vel_vx_pid[0]     = pid_gains.body_vel_vx.kp;
+    params.body_vel_vx_pid[1]     = pid_gains.body_vel_vx.ki;
+    params.body_vel_vx_pid[2]     = pid_gains.body_vel_vx.kd;
+    params.body_vel_vx_pid[3]     = pid_gains.body_vel_vx.tf;
+
+    params.body_vel_wz_pid[0]     = pid_gains.body_vel_wz.kp;
+    params.body_vel_wz_pid[1]     = pid_gains.body_vel_wz.ki;
+    params.body_vel_wz_pid[2]     = pid_gains.body_vel_wz.kd;
+    params.body_vel_wz_pid[3]     = pid_gains.body_vel_wz.tf;
+
+    params.control_mode = control_mode;
+
+    // Write entire struct to FRAM
+    return mbot_write_fram(0, sizeof(params), (uint8_t*)&params);
 }

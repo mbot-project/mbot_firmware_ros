@@ -23,4 +23,4 @@ mbot_control_node:
     body_vel_wz.kd: 0.03
     body_vel_wz.tf: 0.1
 
-    control_mode: 0  # 0=FF only, 1=PID only, 2=FF+PID
+    control_mode: 2  # 0=FF only, 1=PID only, 2=FF+PID

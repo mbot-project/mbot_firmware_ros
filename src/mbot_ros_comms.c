@@ -6,7 +6,6 @@
 // Define ROS Objects (matching extern declarations in .h)
 rcl_publisher_t imu_publisher;
 rcl_publisher_t odom_publisher;
-rcl_publisher_t mbot_vel_publisher;
 rcl_publisher_t motor_vel_publisher;
 rcl_publisher_t tf_publisher;
 rcl_publisher_t encoders_publisher;
@@ -14,7 +13,6 @@ rcl_publisher_t battery_publisher;
 
 sensor_msgs__msg__Imu imu_msg;
 nav_msgs__msg__Odometry odom_msg;
-geometry_msgs__msg__Twist mbot_vel_msg; 
 mbot_interfaces__msg__MotorVelocity motor_vel_msg;
 tf2_msgs__msg__TFMessage tf_msg;
 mbot_interfaces__msg__Encoders encoders_msg;
@@ -60,7 +58,6 @@ int mbot_ros_comms_init_messages(rcl_allocator_t* allocator) {
     odom_msg.child_frame_id.size = strlen(odom_msg.child_frame_id.data);
 
     // Zero all message structs for safe initialization
-    memset(&mbot_vel_msg, 0, sizeof(mbot_vel_msg));
     memset(&cmd_vel_msg_buffer, 0, sizeof(cmd_vel_msg_buffer));
     memset(&motor_vel_msg, 0, sizeof(motor_vel_msg));
     memset(&motor_vel_cmd_msg_buffer, 0, sizeof(motor_vel_cmd_msg_buffer)); // subscriber buffer
@@ -72,7 +69,7 @@ int mbot_ros_comms_init_messages(rcl_allocator_t* allocator) {
 
 int mbot_ros_comms_init_publishers(rcl_node_t *node) {
     rcl_ret_t ret;
-    ret = rclc_publisher_init_default(
+    ret = rclc_publisher_init_best_effort(
         &imu_publisher,
         node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
@@ -86,35 +83,28 @@ int mbot_ros_comms_init_publishers(rcl_node_t *node) {
         "odom");
     if (ret != RCL_RET_OK) { printf("[FATAL] Failed to init odom_publisher: %d\n", ret); fflush(stdout); return MBOT_ERROR; }
 
-    ret = rclc_publisher_init_default(
-        &mbot_vel_publisher,
-        node,
-        ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
-        "mbot_vel");
-    if (ret != RCL_RET_OK) { printf("[FATAL] Failed to init mbot_vel_publisher: %d\n", ret); fflush(stdout); return MBOT_ERROR; }
-
-    ret = rclc_publisher_init_default(
+    ret = rclc_publisher_init_best_effort(
         &motor_vel_publisher,
         node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(mbot_interfaces, msg, MotorVelocity),
         "motor_vel");
     if (ret != RCL_RET_OK) { printf("[FATAL] Failed to init motor_vel_publisher: %d\n", ret); fflush(stdout); return MBOT_ERROR; }
 
-    ret = rclc_publisher_init_default(
+    ret = rclc_publisher_init_best_effort(
         &tf_publisher,
         node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(tf2_msgs, msg, TFMessage),
         "tf");
     if (ret != RCL_RET_OK) { printf("[FATAL] Failed to init tf_publisher: %d\n", ret); fflush(stdout); return MBOT_ERROR; }
 
-    ret = rclc_publisher_init_default(
+    ret = rclc_publisher_init_best_effort(
         &encoders_publisher,
         node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(mbot_interfaces, msg, Encoders),
         "encoders");
     if (ret != RCL_RET_OK) { printf("[FATAL] Failed to init encoders_publisher: %d\n", ret); fflush(stdout); return MBOT_ERROR; }
 
-    ret = rclc_publisher_init_default(
+    ret = rclc_publisher_init_best_effort(
         &battery_publisher,
         node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(mbot_interfaces, msg, BatteryADC),

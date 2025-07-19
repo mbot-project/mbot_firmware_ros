@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <rclc_parameter/rclc_parameter.h>
+#include <mbot/defs/mbot_params.h>
 
 typedef struct {
     float kp;
@@ -36,8 +37,13 @@ void mbot_body_vel_controller(float target_vx, float target_wz,
                              float current_vx, float current_wz,
                              float* vx_correction, float* wz_correction);
 
+// Populate global pid_gains from values stored in mbot_params_t
+void mbot_read_pid_gains(const mbot_params_t* params);
+
 // PID gains global config
 extern mbot_pid_config_t pid_gains;
 extern control_mode_t control_mode;
 
+// Save current PID gains and control mode to FRAM
+int mbot_save_params_to_fram(void);
 #endif
