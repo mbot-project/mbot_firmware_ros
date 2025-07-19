@@ -44,4 +44,6 @@ void mbot_read_pid_gains(const mbot_params_t* params);
 extern mbot_pid_config_t pid_gains;
 extern control_mode_t control_mode;
 
+// Save current PID gains and control mode to FRAM
+int mbot_save_params_to_fram(void);
 #endif
