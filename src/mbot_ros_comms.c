@@ -90,7 +90,7 @@ int mbot_ros_comms_init_publishers(rcl_node_t *node) {
         "motor_vel");
     if (ret != RCL_RET_OK) { printf("[FATAL] Failed to init motor_vel_publisher: %d\n", ret); fflush(stdout); return MBOT_ERROR; }
 
-    ret = rclc_publisher_init_best_effort(
+    ret = rclc_publisher_init_default(
         &tf_publisher,
         node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(tf2_msgs, msg, TFMessage),
