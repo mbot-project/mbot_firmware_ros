@@ -9,6 +9,10 @@
 #include <mbot/fram/fram.h>
 #include <mbot/defs/mbot_params.h>
 
+// for USB CDC support
+#include <pico/multicore.h>
+#include <comms/dual_cdc.h>
+
 #include "config/mbot_classic_config.h"
 #include "config/mbot_classic_default_pid.h"
 
@@ -89,10 +93,20 @@ void print_mbot_params_dd(const mbot_params_t* params) {
     printf("\nControl Mode: %d (%s)\n", params->control_mode, mode_str);
 }
 
+static void core1_usb_task(void) {
+    while (true) {
+        dual_cdc_task();
+        sleep_us(100); // slight yield to other IRQs
+    }
+}
+
 int main() {
     // Initialization
     mbot_params_t params;
     stdio_init_all();
+    // Initialize Dual CDC and launch servicing task on core 1
+    dual_cdc_init();
+    multicore_launch_core1(core1_usb_task);
     printf("\n\n\nInitializing...\n");
     bi_decl(bi_program_description("This will calibrate an MBot and print a diagnostic report"));
     mbot_motor_init(MOT_L);
