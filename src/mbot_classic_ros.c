@@ -533,8 +533,8 @@ static int mbot_init_hardware(void){
     // Initialize PWM LPFs for smoother motion
     mbot_left_pwm_lpf = rc_filter_empty();
     mbot_right_pwm_lpf = rc_filter_empty();
-    rc_filter_first_order_lowpass(&mbot_left_pwm_lpf, MAIN_LOOP_PERIOD, 4.0 * MAIN_LOOP_PERIOD);
-    rc_filter_first_order_lowpass(&mbot_right_pwm_lpf, MAIN_LOOP_PERIOD, 4.0 * MAIN_LOOP_PERIOD);
+    rc_filter_first_order_lowpass(&mbot_left_pwm_lpf, MAIN_LOOP_PERIOD, 0.20f);
+    rc_filter_first_order_lowpass(&mbot_right_pwm_lpf, MAIN_LOOP_PERIOD, 0.20f);
 
     // Initialize FRAM
     mbot_init_fram();
