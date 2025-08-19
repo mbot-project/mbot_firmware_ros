@@ -83,10 +83,16 @@ target_compile_definitions(mbot_classic_ros PRIVATE
 add_executable(mbot_calibrate_classic
     tests/mbot_calibrate_classic.c
 )
+target_include_directories(mbot_calibrate_classic PRIVATE
+    include
+    comms/include
+)
 target_link_libraries(mbot_calibrate_classic
     ${COMMON_LIBS}
+    pico_multicore
     mbotlib
     rclib
+    comms
 )
 pico_enable_stdio_usb(mbot_calibrate_classic 1)
 pico_enable_stdio_uart(mbot_calibrate_classic 0)

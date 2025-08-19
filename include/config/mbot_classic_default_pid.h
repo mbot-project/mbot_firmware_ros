@@ -5,10 +5,10 @@
 
 // Default PID gains (mirrors mbot_classic_pid.yaml)
 static const mbot_pid_config_t MBOT_DEFAULT_PID_GAINS = {
-    .left_wheel  = { .kp = 0.10f, .ki = 0.00f, .kd = 0.00f, .tf = 0.10f },
-    .right_wheel = { .kp = 0.10f, .ki = 0.00f, .kd = 0.00f, .tf = 0.10f },
-    .body_vel_vx = { .kp = 0.10f, .ki = 0.00f, .kd = 0.00f, .tf = 0.10f },
-    .body_vel_wz = { .kp = 0.10f, .ki = 0.00f, .kd = 0.00f, .tf = 0.10f },
+    .left_wheel  = { .kp = 0.08f, .ki = 0.04f, .kd = 0.01f, .tf = 0.1f },
+    .right_wheel = { .kp = 0.08f, .ki = 0.04f, .kd = 0.01f, .tf = 0.1f },
+    .body_vel_vx = { .kp = 0.05f, .ki = 0.04f, .kd = 0.02f, .tf = 0.1f },
+    .body_vel_wz = { .kp = 0.05f, .ki = 0.04f, .kd = 0.02f, .tf = 0.1f },
 };
 
 static const int MBOT_DEFAULT_CONTROL_MODE = 2; // # 0=FF only, 1=PID only, 2=FF+PID
