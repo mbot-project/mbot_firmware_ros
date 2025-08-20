@@ -8,6 +8,8 @@
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hardware/timer.h"
+#include <pico/multicore.h>
+#include <comms/dual_cdc.h>
 #include <mbot/encoder/encoder.h>
 
 #define DELTA "\u0394"
@@ -15,8 +17,18 @@
 #define THETA "\u0398"
 #define PSI "\u03A8"
 
+static void core1_usb_task(void) {
+    while (true) {
+        dual_cdc_task();
+        sleep_us(100);
+    }
+}
+
 int main() {
     int d1, d2, d3, t1, t2, t3 = 0;
+    stdio_init_all();
+    dual_cdc_init();
+    multicore_launch_core1(core1_usb_task);
     mbot_encoder_init();
     sleep_ms(2000);
     while (1) {
