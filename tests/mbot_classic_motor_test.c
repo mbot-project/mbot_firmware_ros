@@ -8,9 +8,18 @@
 #include <mbot/defs/mbot_params.h>
 #include "config/mbot_classic_config.h"
 #include "hardware/clocks.h"
+#include <pico/multicore.h>
+#include <comms/dual_cdc.h>
 
 void drive_motor_up_down(int motor);
 void blink();
+
+static void core1_usb_task(void) {
+    while (true) {
+        dual_cdc_task();
+        sleep_us(100);
+    }
+}
 
 int mbot_init_pico(void){
     // set master clock to 250MHz (if unstable set SYS_CLOCK to 125Mhz)
@@ -20,6 +29,8 @@ int mbot_init_pico(void){
      };
 
     stdio_init_all(); // enable USB serial terminal
+    dual_cdc_init();
+    multicore_launch_core1(core1_usb_task);
     sleep_ms(500);
     printf("\nMBot Booting Up!\n");
     return MBOT_OK;

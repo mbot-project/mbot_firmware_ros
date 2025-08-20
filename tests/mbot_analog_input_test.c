@@ -4,10 +4,21 @@
 #include <pico/stdlib.h>
 #include <hardware/i2c.h>
 #include <hardware/adc.h>
+#include <pico/multicore.h>
+#include <comms/dual_cdc.h>
+
+static void core1_usb_task(void) {
+    while (true) {
+        dual_cdc_task();
+        sleep_us(100);
+    }
+}
 
 int main()
 {
     stdio_init_all();
+    dual_cdc_init();
+    multicore_launch_core1(core1_usb_task);
     adc_init();
     adc_gpio_init(26);
     adc_gpio_init(27);

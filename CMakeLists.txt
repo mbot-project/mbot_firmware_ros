@@ -102,10 +102,16 @@ pico_add_extra_outputs(mbot_calibrate_classic)
 add_executable(mbot_classic_motor_test
     tests/mbot_classic_motor_test.c
 )
+target_include_directories(mbot_classic_motor_test PRIVATE
+    include
+    comms/include
+)
 target_link_libraries(mbot_classic_motor_test
     ${COMMON_LIBS}
+    pico_multicore
     mbotlib
     rclib
+    comms
 )
 pico_enable_stdio_usb(mbot_classic_motor_test 1)
 pico_enable_stdio_uart(mbot_classic_motor_test 0)
@@ -115,10 +121,16 @@ pico_add_extra_outputs(mbot_classic_motor_test)
 add_executable(mbot_encoder_test
     tests/mbot_encoder_test.c
 )
+target_include_directories(mbot_encoder_test PRIVATE
+    include
+    comms/include
+)
 target_link_libraries(mbot_encoder_test
     ${COMMON_LIBS}
+    pico_multicore
     mbotlib
     rclib
+    comms
 )
 pico_enable_stdio_usb(mbot_encoder_test 1)
 pico_enable_stdio_uart(mbot_encoder_test 0)
@@ -128,40 +140,35 @@ pico_add_extra_outputs(mbot_encoder_test)
 add_executable(mbot_analog_input_test
     tests/mbot_analog_input_test.c
 )
+target_include_directories(mbot_analog_input_test PRIVATE
+    include
+    comms/include
+)
 target_link_libraries(mbot_analog_input_test
     ${COMMON_LIBS}
+    pico_multicore
     mbotlib
     rclib
+    comms
 )
 pico_enable_stdio_usb(mbot_analog_input_test 1)
 pico_enable_stdio_uart(mbot_analog_input_test 0)
 pico_add_extra_outputs(mbot_analog_input_test)
 
 # Dual CDC Test
-add_executable(dual_cdc_test
-    tests/dual_cdc_test.c
+add_executable(mbot_dual_cdc_test
+    tests/mbot_dual_cdc_test.c
 )
-target_include_directories(dual_cdc_test PRIVATE
+target_include_directories(mbot_dual_cdc_test PRIVATE
     include
     comms/include
 )
-target_link_libraries(dual_cdc_test
+target_link_libraries(mbot_dual_cdc_test
     pico_stdlib
     hardware_clocks
     comms
 )
-pico_add_extra_outputs(dual_cdc_test)
-
-# LED Blink Test
-add_executable(mbot_led_test
-    tests/mbot_led_test.c
-)
-target_link_libraries(mbot_led_test 
-    pico_stdlib
-)
-pico_enable_stdio_usb(mbot_led_test 1)
-pico_enable_stdio_uart(mbot_led_test 0)
-pico_add_extra_outputs(mbot_led_test)
+pico_add_extra_outputs(mbot_dual_cdc_test)
 
 #=============================================================================
 # [DO NOT CHANGE] Optimization settings
