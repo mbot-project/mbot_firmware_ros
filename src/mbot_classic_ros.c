@@ -530,6 +530,11 @@ static int mbot_init_hardware(void){
     adc_gpio_init(28);
     adc_gpio_init(29);
 
+    // Initialize M3 SERVO
+    gpio_init(SV3_PIN);
+    gpio_set_dir(SV3_PIN, GPIO_OUT);
+    gpio_put(SV3_PIN, 1);  // Start HIGH
+
     // Initialize PWM LPFs for smoother motion
     mbot_left_pwm_lpf = rc_filter_empty();
     mbot_right_pwm_lpf = rc_filter_empty();
