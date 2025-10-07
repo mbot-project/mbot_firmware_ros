@@ -12,6 +12,7 @@
 #define MOT_R                        1   // Right motor slot
 #define MOT_L                        0   // Left motor slot
 #define MOT_UNUSED                   2   // Unused motor slot
-#define NUM_MOT_SLOTS                3   // Total number of motor slots
+#define MOT_LIDAR                    3   // M3 SERVO motor slot for Lidar
+#define NUM_MOT_SLOTS                3   // Total number of wheel motor slots
 
 #endif  /* CONFIG_MBOT_CLASSIC_CONFIG_H */
