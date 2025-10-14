@@ -170,20 +170,6 @@ target_link_libraries(mbot_dual_cdc_test
 )
 pico_add_extra_outputs(mbot_dual_cdc_test)
 
-# Lidar Control Test
-add_executable(mbot_lidar_control
-    tests/mbot_lidar_control.c
-)
-target_include_directories(mbot_lidar_control PRIVATE
-    include
-    comms/include
-)
-target_link_libraries(mbot_lidar_control
-    pico_stdlib
-    hardware_clocks
-    comms
-)
-pico_add_extra_outputs(mbot_lidar_control)
 #=============================================================================
 # [DO NOT CHANGE] Optimization settings
 # These settings help reduce binary size - important for microcontrollers
