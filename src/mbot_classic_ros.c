@@ -530,6 +530,10 @@ static int mbot_init_hardware(void){
     adc_gpio_init(28);
     adc_gpio_init(29);
 
+    // Initialize M3 SERVO for Lidar
+    mbot_motor_init(MOT_LIDAR);
+    mbot_motor_set_duty(MOT_LIDAR, 1.0f);
+
     // Initialize PWM LPFs for smoother motion
     mbot_left_pwm_lpf = rc_filter_empty();
     mbot_right_pwm_lpf = rc_filter_empty();
