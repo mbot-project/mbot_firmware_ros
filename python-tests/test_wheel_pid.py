@@ -1,6 +1,7 @@
 """
 
-This script is used to test the wheel velocity PID controller.
+This script is used to test the wheel velocity PID controller 
+by sending wheel velocity commands and logging the actual wheel velocities.
 
 To run the script, use the following command:
 
@@ -9,8 +10,15 @@ python3 test_wheel_pid.py
 """
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 from mbot_interfaces.msg import MotorVelocity
 import time
+
+best_effort_qos_profile = QoSProfile(
+    reliability=QoSReliabilityPolicy.BEST_EFFORT,
+    history=QoSHistoryPolicy.KEEP_LAST,
+    depth=10
+)
 
 class WheelPIDTester(Node):
     def __init__(self):
@@ -21,7 +29,7 @@ class WheelPIDTester(Node):
         
         # Subscriber for feedback
         self.wheel_vel_sub = self.create_subscription(MotorVelocity, '/motor_vel', 
-                                                     self.wheel_vel_callback, 10)
+                                                     self.wheel_vel_callback, best_effort_qos_profile)
         
         self.current_wheel_vel = [0.0, 0.0, 0.0]
         self.timer = self.create_timer(0.1, self.control_loop)

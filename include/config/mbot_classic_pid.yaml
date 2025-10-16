@@ -13,14 +13,4 @@ mbot_control_node:
     right_wheel.kd: 0.01
     right_wheel.tf: 0.1
 
-    body_vel_vx.kp: 0.05
-    body_vel_vx.ki: 0.04
-    body_vel_vx.kd: 0.02
-    body_vel_vx.tf: 0.1
-
-    body_vel_wz.kp: 0.05
-    body_vel_wz.ki: 0.04
-    body_vel_wz.kd: 0.02
-    body_vel_wz.tf: 0.1
-
     control_mode: 2  # 0=FF only, 1=PID only, 2=FF+PID

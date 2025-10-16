@@ -346,29 +346,27 @@ static bool mbot_loop(repeating_timer_t *rt) {
                 break;
             }
             case MODE_MBOT_VEL: {
+                float target_vel_left = (local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
+                float target_vel_right = (-local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
+
                 // Feedforward PWM
-                float vel_left = (local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
-                float vel_right = (-local_cmd.vx - DIFF_BASE_RADIUS * local_cmd.wz) / DIFF_WHEEL_RADIUS;
-                float vel_left_comp = params.motor_polarity[MOT_L] * vel_left;
-                float vel_right_comp = params.motor_polarity[MOT_R] * vel_right;
+                float vel_left_comp = params.motor_polarity[MOT_L] * target_vel_left;
+                float vel_right_comp = params.motor_polarity[MOT_R] * target_vel_right;
                 float ff_pwm_left = calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
                 float ff_pwm_right = calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
+
                 // PID PWM
-                float vx_correction = 0.0f, wz_correction = 0.0f;
-                mbot_body_vel_controller(
-                    local_cmd.vx, local_cmd.wz,
-                    local_state.vx, local_state.wz,
-                    &vx_correction, &wz_correction
+                float left_correction = 0.0f, right_correction = 0.0f;
+                mbot_motor_vel_controller(
+                    target_vel_left, target_vel_right,
+                    local_state.wheel_vel[MOT_L], local_state.wheel_vel[MOT_R],
+                    &left_correction, &right_correction
                 );
-            
-                // Convert body velocity corrections to wheel PWM corrections
-                float pid_pwm_left_raw = (vx_correction - DIFF_BASE_RADIUS * wz_correction) / DIFF_WHEEL_RADIUS;
-                float pid_pwm_right_raw = (-vx_correction - DIFF_BASE_RADIUS * wz_correction) / DIFF_WHEEL_RADIUS;
                 
                 // Apply motor polarity to PID corrections
-                pid_pwm_left = params.motor_polarity[MOT_L] * pid_pwm_left_raw;
-                pid_pwm_right = params.motor_polarity[MOT_R] * pid_pwm_right_raw;
-            
+                pid_pwm_left = params.motor_polarity[MOT_L] * left_correction;
+                pid_pwm_right = params.motor_polarity[MOT_R] * right_correction;
+
                 switch (control_mode) {
                     case CONTROL_MODE_FF_ONLY:
                         pwm_left = ff_pwm_left;
@@ -661,8 +659,6 @@ static void print_mbot_params(const mbot_params_t* params) {
     printf("Negative Slope: %f %f\n", params->slope_neg[MOT_L], params->slope_neg[MOT_R]);
     printf("Negative Intercept: %f %f\n", params->itrcpt_neg[MOT_L], params->itrcpt_neg[MOT_R]);
     printf("\nPID Gains (kp, ki, kd, tf):\n");
-    printf("  Body Vx : %f %f %f %f\n", params->body_vel_vx_pid[0], params->body_vel_vx_pid[1], params->body_vel_vx_pid[2], params->body_vel_vx_pid[3]);
-    printf("  Body Wz : %f %f %f %f\n", params->body_vel_wz_pid[0], params->body_vel_wz_pid[1], params->body_vel_wz_pid[2], params->body_vel_wz_pid[3]);
     printf("  Wheel L : %f %f %f %f\n", params->left_wheel_vel_pid[0], params->left_wheel_vel_pid[1], params->left_wheel_vel_pid[2], params->left_wheel_vel_pid[3]);
     printf("  Wheel R : %f %f %f %f\n", params->right_wheel_vel_pid[0], params->right_wheel_vel_pid[1], params->right_wheel_vel_pid[2], params->right_wheel_vel_pid[3]);
 

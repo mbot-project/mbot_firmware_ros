@@ -80,8 +80,6 @@ void print_mbot_params_dd(const mbot_params_t* params) {
     printf("Negative Intercept: %f %f\n", params->itrcpt_neg[MOT_L], params->itrcpt_neg[MOT_R]);
 
     printf("\nPID Gains (kp, ki, kd, tf):\n");
-    printf("  Body Vx : %f %f %f %f\n", params->body_vel_vx_pid[0], params->body_vel_vx_pid[1], params->body_vel_vx_pid[2], params->body_vel_vx_pid[3]);
-    printf("  Body Wz : %f %f %f %f\n", params->body_vel_wz_pid[0], params->body_vel_wz_pid[1], params->body_vel_wz_pid[2], params->body_vel_wz_pid[3]);
     printf("  Wheel L : %f %f %f %f\n", params->left_wheel_vel_pid[0], params->left_wheel_vel_pid[1], params->left_wheel_vel_pid[2], params->left_wheel_vel_pid[3]);
     printf("  Wheel R : %f %f %f %f\n", params->right_wheel_vel_pid[0], params->right_wheel_vel_pid[1], params->right_wheel_vel_pid[2], params->right_wheel_vel_pid[3]);
 
@@ -348,16 +346,6 @@ int main() {
     printf("b_ln: %f\n", b_ln);
 
     // Store default PID gains into params struct
-    params.body_vel_vx_pid[0] = MBOT_DEFAULT_PID_GAINS.body_vel_vx.kp;
-    params.body_vel_vx_pid[1] = MBOT_DEFAULT_PID_GAINS.body_vel_vx.ki;
-    params.body_vel_vx_pid[2] = MBOT_DEFAULT_PID_GAINS.body_vel_vx.kd;
-    params.body_vel_vx_pid[3] = MBOT_DEFAULT_PID_GAINS.body_vel_vx.tf;
-
-    params.body_vel_wz_pid[0] = MBOT_DEFAULT_PID_GAINS.body_vel_wz.kp;
-    params.body_vel_wz_pid[1] = MBOT_DEFAULT_PID_GAINS.body_vel_wz.ki;
-    params.body_vel_wz_pid[2] = MBOT_DEFAULT_PID_GAINS.body_vel_wz.kd;
-    params.body_vel_wz_pid[3] = MBOT_DEFAULT_PID_GAINS.body_vel_wz.tf;
-
     params.left_wheel_vel_pid[0] = MBOT_DEFAULT_PID_GAINS.left_wheel.kp;
     params.left_wheel_vel_pid[1] = MBOT_DEFAULT_PID_GAINS.left_wheel.ki;
     params.left_wheel_vel_pid[2] = MBOT_DEFAULT_PID_GAINS.left_wheel.kd;
