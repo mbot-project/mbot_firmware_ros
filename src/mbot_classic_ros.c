@@ -135,8 +135,8 @@ int mbot_init_micro_ros(void) {
         return MBOT_ERROR;
     }
  
-    // Initialize executor with enough handles for parameter server
-    ret = rclc_executor_init(&executor, &support.context, RCLC_EXECUTOR_PARAMETER_SERVER_HANDLES + 6, &allocator);
+    // Initialize executor with enough handles for parameter server, subscribers, timer, and services
+    ret = rclc_executor_init(&executor, &support.context, RCLC_EXECUTOR_PARAMETER_SERVER_HANDLES + 7, &allocator);
     if (ret != RCL_RET_OK) {
         printf("[ERROR] Failed to init executor: %d\n", ret);
         return MBOT_ERROR;
