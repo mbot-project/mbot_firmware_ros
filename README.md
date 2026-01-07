@@ -73,11 +73,11 @@ Key global state variables:
 
 ## Communication
 The firmware uses a single USB Type-C connection with dual CDC (Communication Device Class) interfaces:
-1. **Debug Channel** (`/dev/ttyACM0`):
+1. **Debug Channel** (`/dev/mbot_debug`):
    - Used for firmware debug messages and status prints
-   - Accessible via standard serial tools: `sudo minicom -D /dev/ttyACM0 -b 115200`
+   - Accessible via standard serial tools: `sudo minicom -D /dev/mbot_debug -b 115200`
 
-2. **MicroROS Channel** (`/dev/ttyACM1`):
+2. **MicroROS Channel** (`/dev//mbot_microros`):
    - Dedicated to microROS communication
    - Handles all ROS2 messages and services
    - Used by micro-ros-agent for ROS2 bridge
@@ -87,7 +87,7 @@ This dual-channel approach allows simultaneous debugging and ROS communication w
 ### Important: Servicing TinyUSB and Using `sleep_ms`
 
 **TinyUSB (the USB stack used for CDC communication) requires frequent servicing via `tud_task()` (`dual_cdc_task()`).**
-If the USB stack is not serviced regularly (ideally every 1–10 ms), the host computer may think the device is unresponsive and disconnect the serial ports (`/dev/ttyACM0`, `/dev/ttyACM1`).
+If the USB stack is not serviced regularly (ideally every 1–10 ms), the host computer may think the device is unresponsive and disconnect the serial ports (`/dev/mbot_debug`, `/dev//mbot_microros`).
 
 **Do NOT use long `sleep_ms()` calls.**
 
