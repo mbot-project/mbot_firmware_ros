@@ -15,7 +15,7 @@
 #define MAIN_LOOP_HZ        100
 #define MAIN_LOOP_PERIOD    (1.0f / MAIN_LOOP_HZ)
 
-// ROS timer (limited by executor spin rate in main loop)
+// ROS timer
 #define ROS_TIMER_HZ        120
 #define ROS_TIMER_PERIOD    (1.0f / ROS_TIMER_HZ)
 
