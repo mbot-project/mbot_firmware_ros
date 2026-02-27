@@ -17,7 +17,7 @@ def main():
         start_time = time.time()
         while time.time() - start_time < duration:
             pub.publish(msg)
-            time.sleep(0.1) # 10Hz is plenty for basic moves
+            time.sleep(0.05)
 
     print("Starting sequence...")
     
