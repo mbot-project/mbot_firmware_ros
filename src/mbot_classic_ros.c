@@ -540,7 +540,7 @@ static void mbot_read_imu(void) {
         mbot_state.imu_gyro[i] = mbot_imu_data.gyro[i];
         mbot_state.imu_accel[i] = mbot_imu_data.accel[i];
         mbot_state.imu_mag[i] = mbot_imu_data.mag[i];
-        mbot_state.imu_rpy[i] = mbot_imu_data.rpy[i];
+        mbot_state.imu_rpy[i] = mbot_imu_data.rpy_from_quat[i];
     }
     for(int i = 0; i < 4; i++) {
         mbot_state.imu_quat[i] = mbot_imu_data.quat[i];
