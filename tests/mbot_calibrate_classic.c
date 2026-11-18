@@ -55,9 +55,11 @@ int find_index_of_max_positive(float* arr, int size) {
 
 void least_squares_fit(float* pwms, float* speeds, int n, float* m, float* b) {
     float sum_x = 0.0, sum_y = 0.0, sum_xy = 0.0, sum_xx = 0.0;
+    int count = 0;  // number of points actually used in the sums
 
     for (int i = 0; i < n; ++i) {
         if (speeds[i] != 0.0) {
+            count++;
             sum_x += speeds[i];
             sum_y += pwms[i];
             sum_xy += speeds[i] * pwms[i];
@@ -65,8 +67,8 @@ void least_squares_fit(float* pwms, float* speeds, int n, float* m, float* b) {
         }
     }
 
-    *m = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x * sum_x);
-    *b = (sum_y - *m * sum_x) / n;
+    *m = (count * sum_xy - sum_x * sum_y) / (count * sum_xx - sum_x * sum_x);
+    *b = (sum_y - *m * sum_x) / count;
 }
 
 void print_mbot_params_dd(const mbot_params_t* params) {
@@ -265,10 +267,13 @@ int main() {
     
     for(int i = 0; i <= num_points; i++){
         
-        float d = i * 1.0/(float)num_points;
+        float d = 0.10f + i * 0.50f / (float)num_points;  // duty 0.10 ... 0.60
         mbot_motor_set_duty(MOT_R, params.motor_polarity[MOT_R] * -d);
         mbot_motor_set_duty(MOT_L, params.motor_polarity[MOT_L] * -d);
-        sleep_ms(dt * 1000);
+        sleep_ms(1000);                 // let the speed settle
+        mbot_encoder_read_delta(MOT_R); // discard ticks from the transient
+        mbot_encoder_read_delta(MOT_L);
+        sleep_ms(dt * 1000);            // then measure
         duty_right[i] = -d;
         duty_left[i] = -d;
         wheel_speed_right[i] = conv * params.encoder_polarity[MOT_R] * mbot_encoder_read_delta(MOT_R) / dt;
@@ -300,10 +305,13 @@ int main() {
     mbot_encoder_read_delta(MOT_R);
     mbot_encoder_read_delta(MOT_L);
     for(int i = 0; i <= num_points; i++){
-        float d = i * 1.0/(float)num_points;
+        float d = 0.10f + i * 0.50f / (float)num_points;  // duty 0.10 ... 0.60
         mbot_motor_set_duty(MOT_R, params.motor_polarity[MOT_R] * d);
         mbot_motor_set_duty(MOT_L, params.motor_polarity[MOT_L] * d);
-        sleep_ms(dt * 1000);
+        sleep_ms(1000);                 // let the speed settle
+        mbot_encoder_read_delta(MOT_R); // discard ticks from the transient
+        mbot_encoder_read_delta(MOT_L);
+        sleep_ms(dt * 1000);            // then measure
         duty_right[i] = d;
         duty_left[i] = d;
         wheel_speed_right[i] = conv * params.encoder_polarity[MOT_R] * mbot_encoder_read_delta(MOT_R) / dt;

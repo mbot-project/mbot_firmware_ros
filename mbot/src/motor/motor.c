@@ -70,6 +70,9 @@ int mbot_motor_set_duty(uint8_t ch, float duty) {
         fprintf(stderr, "Error: Invalid channel in mbot_motor_set\n");
         return MBOT_ERROR;
     }
+    // Clamp duty to [-1, 1]; larger values overflow the 16-bit PWM level
+    if (duty > 1.0f) duty = 1.0f;
+    else if (duty < -1.0f) duty = -1.0f;
     uint16_t slice = pwm_gpio_to_slice_num(motor_en[ch]);
 
     // Check for direction

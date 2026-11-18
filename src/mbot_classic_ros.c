@@ -439,7 +439,7 @@ int main() {
 
     printf("\nStarting MBot Loop...\n");
     mbot_state.last_encoder_time = time_us_64(); 
-    if (!add_repeating_timer_ms((int32_t)(MAIN_LOOP_PERIOD * 1000.0f), mbot_loop, NULL, &mbot_loop_timer)){
+    if (!add_repeating_timer_ms(-(int32_t)(MAIN_LOOP_PERIOD * 1000.0f), mbot_loop, NULL, &mbot_loop_timer)){
         printf("Failed to add control loop timer! Halting.\r\n");
         while(1) {tight_loop_contents();}
     }
